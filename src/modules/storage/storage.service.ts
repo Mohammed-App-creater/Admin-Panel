@@ -11,7 +11,7 @@ const PUBLIC_URL = env.PUBLIC_URL;
 export const uploadFile = async (key: string, fileBuffer: Buffer, contentType: string) => {
   const command = new PutObjectCommand({
     Bucket: BUCKET,
-    Key: key,
+    Key: key, 
     Body: fileBuffer,
     ContentType: contentType,
   });

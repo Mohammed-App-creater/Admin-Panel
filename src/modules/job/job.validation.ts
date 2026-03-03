@@ -33,6 +33,8 @@ export const jobFiltersSchema = z.object({
   jobType: z.string().optional(),
   startDate: z.coerce.date().optional(),
   duration: z.coerce.date().optional(),
+  page: z.preprocess((v) => (v !== undefined ? Number(v) : undefined), z.number().int().min(1).optional()),
+  limit: z.preprocess((v) => (v !== undefined ? Number(v) : undefined), z.number().int().min(1).max(100).optional()),
 });
 
 export const jobIdParamSchema = z.object({

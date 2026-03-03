@@ -142,6 +142,8 @@ export const getJobs = async (filters?: {
   jobType?: string;
   startDate?: Date;
   duration?: Date;
+  page?: number;
+  limit?: number;
 }) => {
   return prisma.job.findMany({
     where: {
@@ -159,6 +161,8 @@ export const getJobs = async (filters?: {
       company: { include: { user: true } },
       applications: { include: { worker: { include: { user: true } } } },
     },
+    skip: filters?.page && filters?.limit ? filters.page * filters.limit : 0,
+    take: filters?.limit ?? 10,
   });
 };
 

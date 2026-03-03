@@ -94,7 +94,7 @@ export const workerRegistrationSchema = z.object({
   // User info
   fullName: z.string().min(2, "Full name is required"),
   email: z.email("Invalid email"),
-  phone: z.string().optional(),
+  phone: z.string(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.string().min(1, "Role is required"),
   
