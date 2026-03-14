@@ -1,5 +1,5 @@
 import prisma from "../../config/prisma";
-import { JobStatus } from "@prisma/client";
+import { ApplicationStatus, JobStatus } from "@prisma/client";
 import { NotificationService } from "../notification/notification.service";
 import { NotificationRuleService } from "../notification/notificationRuleService";
 import { sendEmail } from "../../utils/mailer";
@@ -678,8 +678,8 @@ export const getMyJobInvitations = async (workerId: string, page = 1, limit = 20
   if (!worker) throw new Error("Worker not found");
   const where = {
     workerId: worker.id,
-    status: "ACCEPTED",
-    acceptedAssignment: "PENDING",
+    status: ApplicationStatus.ACCEPTED,
+    acceptedAssignment: ApplicationStatus.PENDING,
   };
   const take = Math.min(100, Math.max(1, limit ?? 20));
   const skip = (Math.max(1, page ?? 1) - 1) * take;
@@ -705,10 +705,10 @@ export const getMyApprovedJobs = async (workerId: string, page = 1, limit = 20) 
   if (!worker) throw new Error("Worker not found");
   const where = {
     workerId: worker.id,
-    status: "ACCEPTED",
-    adminApproved: "ACCEPTED",
-    acceptedAssignment: "ACCEPTED",
-    job: { status: { in: ["ACTIVE", "IN_PROGRESS"] } },
+    status: ApplicationStatus.ACCEPTED,
+    adminApproved: ApplicationStatus.ACCEPTED,
+    acceptedAssignment: ApplicationStatus.ACCEPTED,
+    job: { status: { in: [JobStatus.ACTIVE, JobStatus.IN_PROGRESS] } },
   };
   const take = Math.min(100, Math.max(1, limit ?? 20));
   const skip = (Math.max(1, page ?? 1) - 1) * take;
