@@ -31,7 +31,9 @@ export const getUserNotifications = async (req: Request, res: Response, next: Ne
     return;
   }
   try {
-    const notifications = await NotificationService.getUserNotifications(req.user.id);
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const notifications = await NotificationService.getUserNotifications(req.user.id, page, limit);
     res.status(200).json(successResponse(notifications, "User notifications fetched successfully"));
   } catch (error: any) {
     next(error);
@@ -45,7 +47,7 @@ export const isRead = async (req: Request, res: Response, next: NextFunction) =>
   }
   const { notificationId } = req.params;
   try {
-    const notification = await NotificationService.isRead(notificationId);
+    const notification = await NotificationService.isRead(notificationId, req.user.id);
     res.status(200).json(successResponse(notification, "Notification marked as read"));
   } catch (error: any) {
     next(error);

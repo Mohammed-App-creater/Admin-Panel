@@ -1,7 +1,7 @@
 // src/modules/paymentReceipt/paymentReceipt.routes.ts
 import { Router } from "express";
 import * as controller from "./paymentReceipt.controller";
-import { createReceiptSchema, adminRejectSchema, idSchema, userIdSchema } from "./paymentReceipt.validation";
+import { createReceiptSchema, adminRejectSchema, idSchema, userIdSchema, paginationQuerySchema, adminListReceiptsQuerySchema } from "./paymentReceipt.validation";
 import { authorize } from "../../middlewares/authorize";
 import { authenticate } from "../../middlewares/authMiddleware";
 import validate from "../../middlewares/validate";
@@ -58,7 +58,7 @@ router.use(authenticate); // all routes below require authentication
  *               items:
  *                 $ref: '#/components/schemas/PaymentReceipt'
  */
-router.get("/", controller.listUserReceipts);
+router.get("/", validate(paginationQuerySchema, "query"), controller.listUserReceipts);
 
 /**
  * @openapi
@@ -103,13 +103,18 @@ router.get("/:id", validate(idSchema, "params"), controller.getUserReceipt);
  *         schema:
  *           type: string
  *       - in: query
- *         name: take
+ *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           default: 1
  *       - in: query
- *         name: skip
+ *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
  *     responses:
  *       200:
  *         description: Array of receipts
@@ -120,7 +125,7 @@ router.get("/:id", validate(idSchema, "params"), controller.getUserReceipt);
  *               items:
  *                 $ref: '#/components/schemas/PaymentReceipt'
  */
-router.get("/admin/all", controller.adminListReceipts); // /admin/all?status=...
+router.get("/admin/all", validate(adminListReceiptsQuerySchema, "query"), controller.adminListReceipts);
 
 /**
  * @openapi

@@ -2,14 +2,31 @@ import { parse } from "path/win32";
 import prisma from "../../config/prisma";
 import { TransactionType } from "@prisma/client";
 
-// Get all wallets with optional filters
-export const getAllWallets = async () => {
-  return prisma.wallet.findMany({
-    include: {
-      user: true,
-      transactions: true,
+// Get all wallets with pagination
+export const getAllWallets = async (page = 1, limit = 20) => {
+  const take = Math.min(100, Math.max(1, limit ?? 20));
+  const skip = (Math.max(1, page ?? 1) - 1) * take;
+  const [items, total] = await Promise.all([
+    prisma.wallet.findMany({
+      take,
+      skip,
+      orderBy: { id: "desc" },
+      include: {
+        user: true,
+        transactions: true,
+      },
+    }),
+    prisma.wallet.count(),
+  ]);
+  return {
+    items,
+    meta: {
+      total,
+      page: Math.max(1, page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
     },
-  });
+  };
 };
 
 // Get wallet by user ID
@@ -61,15 +78,32 @@ export const adjustWalletBalance = async (
   return updatedWallet;
 };
 
-// Get transaction history (optionally filter by type)
-export const getTransactions = async (walletId: string, type?: TransactionType) => {
-  return prisma.transaction.findMany({
-    where: {
-      walletId,
-      type: type || undefined,
+// Get transaction history (optionally filter by type, with pagination)
+export const getTransactions = async (walletId: string, type?: TransactionType, page = 1, limit = 20) => {
+  const take = Math.min(100, Math.max(1, limit ?? 20));
+  const skip = (Math.max(1, page ?? 1) - 1) * take;
+  const where = {
+    walletId,
+    type: type || undefined,
+  };
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      take,
+      skip,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  return {
+    items,
+    meta: {
+      total,
+      page: Math.max(1, page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
     },
-    orderBy: { createdAt: "desc" },
-  });
+  };
 };
 
 // Get transaction by ID
@@ -79,14 +113,31 @@ export const getTransactionById = async (id: string) => {
   });
 };
 
-// Get transaction by UserId
-export const getTransactionByUserId = async (userId: string) => {
+// Get transaction by UserId with pagination
+export const getTransactionByUserId = async (userId: string, page = 1, limit = 20) => {
   const wallet = await prisma.wallet.findFirst({ where: { userId } });
   if (!wallet) throw new Error("User Wallet not found");
 
-  return prisma.transaction.findMany({
-    where: { walletId: wallet.id },
-    orderBy: { createdAt: "desc" },
-  });
+  const take = Math.min(100, Math.max(1, limit ?? 20));
+  const skip = (Math.max(1, page ?? 1) - 1) * take;
+  const where = { walletId: wallet.id };
+  const [items, total] = await Promise.all([
+    prisma.transaction.findMany({
+      where,
+      take,
+      skip,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.transaction.count({ where }),
+  ]);
+  return {
+    items,
+    meta: {
+      total,
+      page: Math.max(1, page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    },
+  };
 };
 

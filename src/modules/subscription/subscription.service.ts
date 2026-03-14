@@ -93,23 +93,37 @@ export const listSubscriptions = async (filters: {
     userId?: string;
     planId?: string;
     status?: string;
-    take?: number;
-    skip?: number;
+    page?: number;
+    limit?: number;
 } = {}) => {
     const where: any = {};
     if (filters.userId) where.userId = filters.userId;
     if (filters.planId) where.planId = filters.planId;
     if (filters.status) where.status = filters.status;
 
-    const subscriptions = await prisma.subscription.findMany({
-        where,
-        take: filters.take ?? 50,
-        skip: filters.skip ?? 0,
-        orderBy: { createdAt: "desc" },
-        include: { plan: true, user: true },
-    });
+    const take = Math.min(100, Math.max(1, filters.limit ?? 20));
+    const skip = (Math.max(1, filters.page ?? 1) - 1) * take;
 
-    return subscriptions.map((s) => ({ ...s, daysLeft: calculateDaysLeft(s) }));
+    const [subscriptions, total] = await Promise.all([
+        prisma.subscription.findMany({
+            where,
+            take,
+            skip,
+            orderBy: { createdAt: "desc" },
+            include: { plan: true, user: true },
+        }),
+        prisma.subscription.count({ where }),
+    ]);
+
+    return {
+        items: subscriptions.map((s) => ({ ...s, daysLeft: calculateDaysLeft(s) })),
+        meta: {
+            total,
+            page: Math.max(1, filters.page ?? 1),
+            limit: take,
+            totalPages: Math.ceil(total / take),
+        },
+    };
 };
 
 export const updateSubscription = async (id: string, data: Partial<CreateSubscriptionDto>) => {
@@ -148,12 +162,29 @@ export const deleteSubscription = async (id: string) => {
     return prisma.subscription.delete({ where: { id } });
 };
 
-export const getMySubscriptions = async (userId: string) => {
-    const subs = await prisma.subscription.findMany({
-        where: { userId },
-        include: { plan: true, user: true },
-    });
-    return subs.map((s) => ({ ...s, daysLeft: calculateDaysLeft(s) }));
+export const getMySubscriptions = async (userId: string, page = 1, limit = 20) => {
+    const take = Math.min(100, Math.max(1, limit ?? 20));
+    const skip = (Math.max(1, page ?? 1) - 1) * take;
+    const where = { userId };
+    const [subs, total] = await Promise.all([
+        prisma.subscription.findMany({
+            where,
+            take,
+            skip,
+            orderBy: { createdAt: "desc" },
+            include: { plan: true, user: true },
+        }),
+        prisma.subscription.count({ where }),
+    ]);
+    return {
+        items: subs.map((s) => ({ ...s, daysLeft: calculateDaysLeft(s) })),
+        meta: {
+            total,
+            page: Math.max(1, page ?? 1),
+            limit: take,
+            totalPages: Math.ceil(total / take),
+        },
+    };
 };
 
 export const getMyActiveSubscription = async (userId: string) => {

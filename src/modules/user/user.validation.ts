@@ -9,7 +9,12 @@ export const listUsersQuerySchema = z.object({
     dateFrom: z.string().optional(),
     dateTo: z.string().optional(),
     page: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional()),
-    limit: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().optional()),
+    limit: z.preprocess((val) => (val ? Number(val) : undefined), z.number().int().positive().max(100).optional()),
+});
+
+export const paginationQuerySchema = z.object({
+    page: z.preprocess((val) => (val !== undefined && val !== "" ? Number(val) : undefined), z.number().int().min(1).optional()),
+    limit: z.preprocess((val) => (val !== undefined && val !== "" ? Number(val) : undefined), z.number().int().min(1).max(100).optional()),
 });
 
 export const userIdSchema = z.object({

@@ -21,7 +21,7 @@ const router = Router();
  *       401:
  *         description: Unauthorized
  */
-router.get("/", authenticate, walletController.getAllWallets);
+router.get("/", authenticate, validate(schema.paginationQuerySchema, "query"), walletController.getAllWallets);
 
 /**
  * @openapi
@@ -145,7 +145,7 @@ router.patch("/:userId/adjust", validate(schema.userIdSchema, "params"), authent
  *       404:
  *         description: Wallet not found
  */
-router.get("/:walletId/transactions", validate(schema.walletIdSchema, "params"), authenticate, walletController.getTransactions);
+router.get("/:walletId/transactions", validate(schema.walletIdSchema, "params"), validate(schema.getTransactionsQuerySchema, "query"), authenticate, walletController.getTransactions);
 
 /**
  * @openapi
@@ -197,6 +197,6 @@ router.get("/:transactionId/transaction", validate(schema.transactionIdSchema, "
  *       404:
  *         description: User or transactions not found
  */
-router.get("/:userId/user-transaction", validate(schema.userIdSchema, "params"), authenticate, walletController.getTransactionByUserId)
+router.get("/:userId/user-transaction", validate(schema.userIdSchema, "params"), validate(schema.paginationQuerySchema, "query"), authenticate, walletController.getTransactionByUserId)
 
 export default router;

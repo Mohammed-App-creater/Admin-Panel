@@ -161,6 +161,28 @@ export const filterWorkers = async (filters: WorkerFilters) => {
   };
 };
 
+// Get worker verification status by user ID (for authenticated worker checking own status)
+export const getVerificationStatusByUserId = async (userId: string) => {
+  const worker = await prisma.worker.findUnique({
+    where: { userId },
+    select: {
+      id: true,
+      user: {
+        select: {
+          verification: true,
+          status: true,
+        },
+      },
+    },
+  });
+  if (!worker) return null;
+  return {
+    workerId: worker.id,
+    verification: worker.user.verification,
+    status: worker.user.status,
+  };
+};
+
 // Get worker details by ID
 export const getWorkerById = async (workerId: string) => {
   return prisma.worker.findUnique({
@@ -603,12 +625,29 @@ export const rejectAssignment = async (applicationId: string, workerId: string) 
   return result;
 }
 
-export const getWorkerJobApplications = async (workerId: string) => {
-  return prisma.workerJobApplication.findMany({
-    where: { workerId },
-    orderBy: { appliedAt: "desc" },
-    include: { job: { include: { company: true } }, worker: { include: { user: true } } }
-  });
+export const getWorkerJobApplications = async (workerId: string, page = 1, limit = 20) => {
+  const take = Math.min(100, Math.max(1, limit ?? 20));
+  const skip = (Math.max(1, page ?? 1) - 1) * take;
+  const where = { workerId };
+  const [items, total] = await Promise.all([
+    prisma.workerJobApplication.findMany({
+      where,
+      take,
+      skip,
+      orderBy: { appliedAt: "desc" },
+      include: { job: { include: { company: true } }, worker: { include: { user: true } } }
+    }),
+    prisma.workerJobApplication.count({ where }),
+  ]);
+  return {
+    data: items,
+    meta: {
+      total,
+      page: Math.max(1, page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    },
+  };
 }
 
 export const toggleWorkerAvailability = async (workerId: string, isAvailable: boolean) => {

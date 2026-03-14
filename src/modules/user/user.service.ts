@@ -127,32 +127,45 @@ export class UserService {
     return { success: true };
   }
 
-  static async getReferralsByUser(userId: string) {
-    // 1) find this user's referralCode
+  static async getReferralsByUser(userId: string, page = 1, limit = 20) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, email: true, referralCode: true },
     });
     if (!user) throw new Error("User not found");
 
-    // 2) list users whose referredBy === user.referralCode
-    const referred = await prisma.user.findMany({
-      where: { referredBy: user.referralCode ?? "" },
-      orderBy: { createdAt: "desc" },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        status: true,
-        verification: true,
-        createdAt: true,
-      },
-    });
+    const where = { referredBy: user.referralCode ?? "" };
+    const take = Math.min(100, Math.max(1, limit ?? 20));
+    const skip = (Math.max(1, page ?? 1) - 1) * take;
+
+    const [referred, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          email: true,
+          role: true,
+          status: true,
+          verification: true,
+          createdAt: true,
+        },
+      }),
+      prisma.user.count({ where }),
+    ]);
 
     return {
       referrer: { id: user.id, email: user.email, referralCode: user.referralCode },
       referred,
-      count: referred.length,
+      count: total,
+      meta: {
+        total,
+        page: Math.max(1, page ?? 1),
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      },
     };
   }
 
@@ -219,11 +232,30 @@ export class UserService {
     return totalReviews;
   }
 
-  static async getReviews(userId: string) {
-    const reviews = await prisma.review.findMany({
-      where: { userId: userId },
-    });
-    return reviews;
+  static async getReviews(userId: string, page = 1, limit = 20) {
+    const where = { userId };
+    const take = Math.min(100, Math.max(1, limit ?? 20));
+    const skip = (Math.max(1, page ?? 1) - 1) * take;
+
+    const [items, total] = await Promise.all([
+      prisma.review.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.review.count({ where }),
+    ]);
+
+    return {
+      items,
+      meta: {
+        total,
+        page: Math.max(1, page ?? 1),
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      },
+    };
   }
 
   static async postReview(userId: string, companyId: string, rating: number, comment?: string) {

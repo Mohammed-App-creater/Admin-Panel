@@ -103,7 +103,9 @@ export class UserController {
   static async getReferrals(req: Request, res: Response, next: NextFunction) {
     try {
       const { id } = req.params;
-      const data = await UserService.getReferralsByUser(id);
+      const page = req.query.page ? Number(req.query.page) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const data = await UserService.getReferralsByUser(id, page, limit);
       res.json(successResponse(data, "Referred users fetched"));
     } catch (err) {
       res.json(next(err));
@@ -130,7 +132,9 @@ export class UserController {
 
   static async getReviews(req: Request, res: Response, next: NextFunction) {
     try {
-      const data = await UserService.getReviews(req.params.id);
+      const page = req.query.page ? Number(req.query.page) : undefined;
+      const limit = req.query.limit ? Number(req.query.limit) : undefined;
+      const data = await UserService.getReviews(req.params.id, page, limit);
       res.json(successResponse(data, "User reviews fetched"));
     } catch (err) {
       res.json(next(err));

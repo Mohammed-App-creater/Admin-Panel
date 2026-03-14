@@ -16,9 +16,9 @@ export const createPlan = async (req: Request, res: Response, next: NextFunction
 
 export const listPlans = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const take = Number(req.query.take ?? 20);
-    const skip = Number(req.query.skip ?? 0);
-    const plans = await service.getPlans(take, skip);
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const plans = await service.getPlans(page, limit);
     return res.json(successResponse(plans));
   } catch (err) {
     next(err);

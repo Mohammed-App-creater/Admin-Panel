@@ -36,14 +36,29 @@ export const createReceipt = async (userId: string, dto: CreateReceiptDto) => {
 };
 
 
-export const getReceiptsByUser = async (userId: string, take = 50, skip = 0) => {
-  return prisma.paymentReceipt.findMany({
-    where: { userId },
-    take,
-    skip,
-    orderBy: { createdAt: "desc" },
-    include: { bank: true, plan: true, transaction: true },
-  });
+export const getReceiptsByUser = async (userId: string, page = 1, limit = 20) => {
+  const take = Math.min(100, Math.max(1, limit ?? 20));
+  const skip = (Math.max(1, page ?? 1) - 1) * take;
+  const where = { userId };
+  const [items, total] = await Promise.all([
+    prisma.paymentReceipt.findMany({
+      where,
+      take,
+      skip,
+      orderBy: { createdAt: "desc" },
+      include: { bank: true, plan: true, transaction: true },
+    }),
+    prisma.paymentReceipt.count({ where }),
+  ]);
+  return {
+    items,
+    meta: {
+      total,
+      page: Math.max(1, page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    },
+  };
 };
 
 export const getReceiptById = async (id: string) => {
@@ -53,16 +68,30 @@ export const getReceiptById = async (id: string) => {
   });
 };
 
-export const adminListReceipts = async (filters: { status?: string; take?: number; skip?: number } = {}) => {
+export const adminListReceipts = async (filters: { status?: string; page?: number; limit?: number } = {}) => {
   const where: Prisma.PaymentReceiptWhereInput = {};
   if (filters.status) where.status = filters.status as any;
-  return prisma.paymentReceipt.findMany({
-    where,
-    take: filters.take ?? 50,
-    skip: filters.skip ?? 0,
-    orderBy: { createdAt: "desc" },
-    include: { user: true, bank: true, plan: true, transaction: true },
-  });
+  const take = Math.min(100, Math.max(1, filters.limit ?? 20));
+  const skip = (Math.max(1, filters.page ?? 1) - 1) * take;
+  const [items, total] = await Promise.all([
+    prisma.paymentReceipt.findMany({
+      where,
+      take,
+      skip,
+      orderBy: { createdAt: "desc" },
+      include: { user: true, bank: true, plan: true, transaction: true },
+    }),
+    prisma.paymentReceipt.count({ where }),
+  ]);
+  return {
+    items,
+    meta: {
+      total,
+      page: Math.max(1, filters.page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    },
+  };
 };
 
 export const adminGetReceipt = getReceiptById;

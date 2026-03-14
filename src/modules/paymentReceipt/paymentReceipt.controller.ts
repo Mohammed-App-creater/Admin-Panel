@@ -21,7 +21,9 @@ export const createReceipt = async (req: Request, res: Response, next: NextFunct
 export const listUserReceipts = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const userId = (req as any).user.id as string;
-    const results = await service.getReceiptsByUser(userId);
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const results = await service.getReceiptsByUser(userId, page, limit);
     return res.json(successResponse(results));
   } catch (err) {
     next(err);
@@ -49,11 +51,11 @@ export const getUserReceipt = async (req: Request, res: Response, next: NextFunc
 
 export const adminListReceipts = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { status, take, skip } = req.query;
+    const { status, page, limit } = req.query;
     const results = await service.adminListReceipts({
       status: status as string | undefined,
-      take: take ? Number(take) : undefined,
-      skip: skip ? Number(skip) : undefined,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
     return res.json(successResponse(results));
   } catch (err) {

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middlewares/authMiddleware";
 import * as jobController from "./job.controller";
 import validate from "../../middlewares/validate";
-import { applicationIdParamSchema, applyToJobSchema, assignWorkerParamsSchema, companyIdParamForJobsSchema, companyIdParamSchema, createJobSchema, getMyJobAssignmentsQuerySchema, jobFiltersSchema, JobIdParamSchema, jobIdParamSchema, listApplicationsSchema, updateJobSchema, workerIdParamSchema } from "./job.validation";
+import { applicationIdParamSchema, applyToJobSchema, assignWorkerParamsSchema, assignmentsFiltersSchema, companyIdParamForJobsSchema, companyIdParamSchema, createJobSchema, jobFiltersSchema, JobIdParamSchema, jobIdParamSchema, listApplicationsSchema, paginationQuerySchema, updateJobSchema, workerIdParamSchema } from "./job.validation";
 import { authorize } from "../../middlewares/authorize";
 
 const router = Router();
@@ -48,7 +48,7 @@ const router = Router();
  *       500:
  *         description: Internal server error
  */
-router.get("/assignments", authenticate, jobController.getAllAssignedJobs);
+router.get("/assignments", authenticate, validate(assignmentsFiltersSchema, "query"), jobController.getAllAssignedJobs);
 
 /**
  * @openapi
@@ -165,7 +165,7 @@ router.get("/applications", validate(listApplicationsSchema, "query"), authentic
  *       500:
  *         description: Internal server error
  */
-router.get("/applications/job/:jobId", validate(JobIdParamSchema, "params"), authenticate, jobController.getApplicationsByJob);
+router.get("/applications/job/:jobId", validate(JobIdParamSchema, "params"), validate(paginationQuerySchema, "query"), authenticate, jobController.getApplicationsByJob);
 
 
 /**
@@ -560,7 +560,7 @@ router.patch("/admin/:applicationId/reject", authenticate, authorize("ADMIN"), v
  *       500:
  *         description: Internal server error
  */
-router.get("/assignments/job/:jobId", authenticate, validate(jobIdParamSchema, "params"), jobController.getAllJobAssignments);
+router.get("/assignments/job/:jobId", authenticate, validate(jobIdParamSchema, "params"), validate(paginationQuerySchema, "query"), jobController.getAllJobAssignments);
 
 /**
  * @openapi
@@ -589,7 +589,7 @@ router.get("/assignments/job/:jobId", authenticate, validate(jobIdParamSchema, "
  *       500:
  *         description: Internal server error
  */
-router.get("/assigned/company/:companyId", authenticate, validate(companyIdParamForJobsSchema, "params"), jobController.getAllCompanyAssignedJobs);
+router.get("/assigned/company/:companyId", authenticate, validate(companyIdParamForJobsSchema, "params"), validate(paginationQuerySchema, "query"), jobController.getAllCompanyAssignedJobs);
 
 /**
  * @openapi
@@ -618,7 +618,7 @@ router.get("/assigned/company/:companyId", authenticate, validate(companyIdParam
  *       500:
  *         description: Internal server error
  */
-router.get("/assigned/worker/:workerId", authenticate, validate(workerIdParamSchema, "params"), jobController.getAllWorkerAssignedJobs);
+router.get("/assigned/worker/:workerId", authenticate, validate(workerIdParamSchema, "params"), validate(paginationQuerySchema, "query"), jobController.getAllWorkerAssignedJobs);
 
 /**
  * @openapi
@@ -663,7 +663,71 @@ router.get("/assigned/worker/:workerId", authenticate, validate(workerIdParamSch
  *       500:
  *         description: Internal server error.
  */
-router.get("/assignments/me", authenticate, validate(getMyJobAssignmentsQuerySchema, "query"), jobController.getMyJobAssignments);
+router.get("/assignments/me", authenticate, validate(paginationQuerySchema, "query"), jobController.getMyJobAssignments);
+
+/**
+ * @openapi
+ * /jobs/invitations/me:
+ *   get:
+ *     tags:
+ *       - Job-Assignments
+ *     summary: Get my job invitations (authenticated worker)
+ *     description: Returns jobs assigned to the worker that are awaiting accept/reject. After accepting or rejecting, jobs are removed from this list.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *     responses:
+ *       200:
+ *         description: List of job invitations
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/invitations/me", authenticate, validate(paginationQuerySchema, "query"), jobController.getMyJobInvitations);
+
+/**
+ * @openapi
+ * /jobs/approved/me:
+ *   get:
+ *     tags:
+ *       - Job-Assignments
+ *     summary: Get my approved jobs (authenticated worker)
+ *     description: Returns jobs the worker has accepted, admin-approved, and still active (not closed).
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *     responses:
+ *       200:
+ *         description: List of approved/active jobs
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+router.get("/approved/me", authenticate, validate(paginationQuerySchema, "query"), jobController.getMyApprovedJobs);
 
 /**
  * @openapi
@@ -683,7 +747,7 @@ router.get("/assignments/me", authenticate, validate(getMyJobAssignmentsQuerySch
  *       500:
  *         description: Internal server error
  */
-router.get("/history/me", authenticate, jobController.getMyJobHistory);
+router.get("/history/me", authenticate, validate(paginationQuerySchema, "query"), jobController.getMyJobHistory);
 
 
 export default router;

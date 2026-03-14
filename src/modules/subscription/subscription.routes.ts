@@ -2,7 +2,7 @@ import express from "express";
 import * as controller from "./subscription.controller";
 import validate from "../../middlewares/validate";
 import { authenticate } from "../../middlewares/authMiddleware";
-import { updateSubscriptionSchema, subscriptionIdSchema } from "./subscription.validation";
+import { updateSubscriptionSchema, subscriptionIdSchema, listSubscriptionsQuerySchema, mySubscriptionsQuerySchema } from "./subscription.validation";
 
 
 /**
@@ -30,7 +30,7 @@ const router = express.Router();
  *               items:
  *                 $ref: '#/components/schemas/Subscription'
  */
-router.get("/", controller.listSubscriptions); // query params for filter
+router.get("/", validate(listSubscriptionsQuerySchema, "query"), controller.listSubscriptions);
 
 /**
  * @swagger
@@ -48,7 +48,7 @@ router.get("/", controller.listSubscriptions); // query params for filter
  *               items:
  *                 $ref: '#/components/schemas/Subscription'
  */
-router.get("/me", authenticate, controller.mySubscriptions);
+router.get("/me", authenticate, validate(mySubscriptionsQuerySchema, "query"), controller.mySubscriptions);
 
 /**
  * @swagger

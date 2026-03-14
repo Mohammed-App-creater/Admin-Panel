@@ -16,7 +16,9 @@ export const createBank = async (req: Request, res: Response, next: NextFunction
 
 export const listBanks = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const banks = await service.listBanks();
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const banks = await service.listBanks(page, limit);
     res.json(successResponse(banks, "Banks retrieved successfully"));
   } catch (err) {
     next(err);

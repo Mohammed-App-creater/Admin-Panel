@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authenticate } from "../../middlewares/authMiddleware";
 import * as workerController from "./worker.controller";
 import validate from "../../middlewares/validate";
-import { categoryIdSchema, roleIdSchema, specialityIdSchema, userIdSchema, workerDetailsSchema, createCategory, createRole, createSpeciality, createWorkType, workerRegistrationSchema, workerSchema, applicationsSchema, workerIdSchema, toggleAvailabilitySchema } from "./worker.validation";
+import { categoryIdSchema, roleIdSchema, specialityIdSchema, userIdSchema, workerDetailsSchema, createCategory, createRole, createSpeciality, createWorkType, workerRegistrationSchema, workerSchema, applicationsSchema, workerApplicationsQuerySchema, workerIdSchema, toggleAvailabilitySchema } from "./worker.validation";
 
 const router = Router();
 
@@ -396,6 +396,47 @@ router.get("/", authenticate, workerController.getWorkers);
 
 /**
  * @openapi
+ * /workers/me/verification-status:
+ *   get:
+ *     tags:
+ *       - Worker
+ *     summary: Get verification status of the authenticated worker account
+ *     description: Returns the verification and account status for the logged-in worker.
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Verification status
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     workerId:
+ *                       type: string
+ *                       format: uuid
+ *                     verification:
+ *                       type: string
+ *                       enum: [PENDING, APPROVED, REJECTED]
+ *                     status:
+ *                       type: string
+ *                       enum: [ACTIVE, INACTIVE, PENDING, REJECTED]
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - only workers can access
+ *       404:
+ *         description: Worker profile not found
+ */
+router.get("/me/verification-status", authenticate, workerController.getVerificationStatus);
+
+/**
+ * @openapi
  * /workers/{id}:
  *   get:
  *     tags:
@@ -702,7 +743,7 @@ router.patch("/:id/update", validate(userIdSchema, "params"), validate(workerDet
  *       404:
  *         description: Worker not found
  */
-router.get("/:workerId/applications", validate(applicationsSchema, "params"), authenticate, workerController.getWorkerJobApplications);
+router.get("/:workerId/applications", validate(applicationsSchema, "params"), validate(workerApplicationsQuerySchema, "query"), authenticate, workerController.getWorkerJobApplications);
 
 /**
  * @openapi

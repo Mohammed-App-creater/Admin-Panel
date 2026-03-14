@@ -48,16 +48,36 @@ export class NotificationService {
     });
   }
 
-  static async getUserNotifications(userId: string) {
-    return prisma.notification.findMany({
-      where: { userId: userId },
-      orderBy: { createdAt: "desc" },
-    });
+  static async getUserNotifications(userId: string, page = 1, limit = 20) {
+    const take = Math.min(100, Math.max(1, limit ?? 20));
+    const skip = (Math.max(1, page ?? 1) - 1) * take;
+    const where = { userId };
+    const [items, total] = await Promise.all([
+      prisma.notification.findMany({
+        where,
+        take,
+        skip,
+        orderBy: { createdAt: "desc" },
+      }),
+      prisma.notification.count({ where }),
+    ]);
+    return {
+      items,
+      meta: {
+        total,
+        page: Math.max(1, page ?? 1),
+        limit: take,
+        totalPages: Math.ceil(total / take),
+      },
+    };
   }
 
-  static async isRead(notificationId: string) {
+  static async isRead(notificationId: string, userId: string) {
     const notification = await prisma.notification.update({
-      where: { id: notificationId },
+      where: {
+        id: notificationId,
+        userId,
+      },
       data: { isRead: true },
     });
     return notification;

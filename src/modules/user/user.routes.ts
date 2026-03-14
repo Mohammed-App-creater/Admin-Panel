@@ -5,7 +5,7 @@ import { authenticate } from "../../middlewares/authMiddleware";
 import { authorize } from "../../middlewares/authorize";
 import validate from "../../middlewares/validate";
 import * as userValidation from "./user.validation";
-import { postReviewSchema, resetPasswordSchema, userIdSchema } from "./user.validation";
+import { paginationQuerySchema, postReviewSchema, resetPasswordSchema, userIdSchema } from "./user.validation";
 
 const router = Router();
 
@@ -259,7 +259,7 @@ router.post("/:id/referral-code/ensure", validate(userIdSchema, "params"), UserC
  *       200:
  *         description: Referred users fetched
  */
-router.get("/:id/referrals", validate(userIdSchema, "params"), UserController.getReferrals);
+router.get("/:id/referrals", validate(userIdSchema, "params"), validate(paginationQuerySchema, "query"), UserController.getReferrals);
 
 // GET //users/referral/stats
 /**
@@ -334,7 +334,7 @@ router.post("/:id/reviews", validate(userIdSchema, "params"), validate(postRevie
  *       200:
  *         description: User reviews fetched
  */
-router.get("/:id/reviews", validate(userIdSchema, "params"), UserController.getReviews);
+router.get("/:id/reviews", validate(userIdSchema, "params"), validate(paginationQuerySchema, "query"), UserController.getReviews);
 
 /**
  * @openapi

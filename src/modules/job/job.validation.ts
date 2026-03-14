@@ -106,6 +106,23 @@ export const getMyJobAssignmentsQuerySchema = z.object({
   companyStatus: z.enum(["PENDING", "ACCEPTED", "REJECTED"]).optional(),
   workStatus: z.enum(["PENDING", "ACCEPTED", "REJECTED"]).optional(),
   adminStatus: z.enum(["PENDING", "ACCEPTED", "REJECTED"]).optional(),
+  page: z.preprocess((v) => (v !== undefined ? Number(v) : undefined), z.number().int().min(1).optional()),
+  limit: z.preprocess((v) => (v !== undefined ? Number(v) : undefined), z.number().int().min(1).max(100).optional()),
+});
+
+export const paginationQuerySchema = z.object({
+  page: z.preprocess((v) => (v !== undefined && v !== "" ? Number(v) : undefined), z.number().int().min(1).optional()),
+  limit: z.preprocess((v) => (v !== undefined && v !== "" ? Number(v) : undefined), z.number().int().min(1).max(100).optional()),
+});
+
+export const assignmentsFiltersSchema = z.object({
+  workerId: z.string().optional(),
+  companyId: z.string().optional(),
+  status: z.string().optional(),
+  adminApproved: z.string().optional(),
+  acceptedAssignment: z.string().optional(),
+  page: z.preprocess((v) => (v !== undefined ? Number(v) : undefined), z.number().int().min(1).optional()),
+  limit: z.preprocess((v) => (v !== undefined ? Number(v) : undefined), z.number().int().min(1).max(100).optional()),
 });
 
 export type ListApplicationsQuery = z.infer<typeof listApplicationsSchema>;

@@ -3,7 +3,7 @@ import { subscribeToNotifications, getUserNotifications, isRead } from "./notifi
 import { authenticate } from "../../middlewares/authMiddleware";
 import validate from "../../middlewares/validate";
 import { sseManager } from "../../infrastructure/notifications/sseManager";
-import { NotificationIdSchema } from "./notification.validation"
+import { NotificationIdSchema, getUserNotificationsQuerySchema } from "./notification.validation"
 
 
 
@@ -49,7 +49,7 @@ const router = Router();
  *       '401':
  *         description: Unauthorized - missing or invalid authentication token
  */
-router.get("/", authenticate, getUserNotifications);
+router.get("/", authenticate, validate(getUserNotificationsQuerySchema, "query"), getUserNotifications);
 
 /**
  * @openapi
@@ -96,7 +96,7 @@ router.get("/", authenticate, getUserNotifications);
  *         description: Not Found - notification does not exist
  */
 
-router.patch("/:notificationId/read", validate(NotificationIdSchema), authenticate, isRead);
+router.patch("/:notificationId/read", validate(NotificationIdSchema, "params"), authenticate, isRead);
 
 /**
  * @openapi

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as controller from "./bank.controller";
-import {  createBankSchema, idSchema, updateBankSchema } from "./bank.validation";
+import {  createBankSchema, idSchema, updateBankSchema, listBanksQuerySchema } from "./bank.validation";
 import { authorize } from "../../middlewares/authorize";
 import { authenticate } from "../../middlewares/authMiddleware";
 import validate from "../../middlewares/validate";
@@ -24,13 +24,18 @@ const router = Router();
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: take
+ *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           default: 1
  *       - in: query
- *         name: skip
+ *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
  *     responses:
  *       200:
  *         description: Array of banks
@@ -41,7 +46,7 @@ const router = Router();
  *               items:
  *                 $ref: '#/components/schemas/Bank'
  */
-router.get("/", controller.listBanks);
+router.get("/", validate(listBanksQuerySchema, "query"), controller.listBanks);
 
 // All bank routes are admin-only
 // router.use(authorize("ADMIN"));

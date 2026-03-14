@@ -117,8 +117,9 @@ export const rejectWorkContract = async (req: Request, res: Response, next: Next
 
 export const getApplicationsByJob = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    console.log("Fetching applications for job:", req.params.jobId);
-    const applications = await jobService.getApplicationsByJob(req.params.jobId);
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const applications = await jobService.getApplicationsByJob(req.params.jobId, page, limit);
     return res.json(applications);
   } catch (err) {
     next(err)
@@ -183,17 +184,18 @@ export const listApplications = async (req: Request, res: Response, next: NextFu
 
 export const getAllAssignedJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { workerId, companyId, status, adminApproved, acceptedAssignment } = req.query;
-    // normalize query params into proper types for the service
+    const { workerId, companyId, status, adminApproved, acceptedAssignment, page, limit } = req.query;
     const filters = {
       workerId: typeof workerId === "string" ? workerId : Array.isArray(workerId) ? String(workerId[0]) : undefined,
       companyId: typeof companyId === "string" ? companyId : undefined,
       status: typeof status === "string" ? status : undefined,
       adminApproved: typeof adminApproved === "string" ? (adminApproved === "true") : undefined,
       acceptedAssignment: typeof acceptedAssignment === "string" ? (acceptedAssignment === "true") : undefined,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     };
-    const jobs = await jobService.getAllAssignedJobs(filters as any);
-    res.json(jobs);
+    const result = await jobService.getAllAssignedJobs(filters);
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -201,8 +203,10 @@ export const getAllAssignedJobs = async (req: Request, res: Response, next: Next
 
 export const getAllCompanyAssignedJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const jobs = await jobService.getAllCompanyAssignedJobs(req.params.companyId);
-    res.json(jobs);
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const result = await jobService.getAllCompanyAssignedJobs(req.params.companyId, page, limit);
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -210,8 +214,10 @@ export const getAllCompanyAssignedJobs = async (req: Request, res: Response, nex
 
 export const getAllWorkerAssignedJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const jobs = await jobService.getAllAssignedJobsForWorker(req.params.workerId);
-    res.json(jobs);
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const result = await jobService.getAllAssignedJobsForWorker(req.params.workerId, page, limit);
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -219,8 +225,10 @@ export const getAllWorkerAssignedJobs = async (req: Request, res: Response, next
 
 export const getAllJobAssignments = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const assignments = await jobService.getAllAssignedForJobs(req.params.jobId);
-    res.json(assignments);
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const result = await jobService.getAllAssignedForJobs(req.params.jobId, page, limit);
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -229,14 +237,37 @@ export const getAllJobAssignments = async (req: Request, res: Response, next: Ne
 export const getMyJobAssignments = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const workerId = req?.user?.id;
-    const { companyStatus: rawCompanyStatus, workStatus: rawWorkStatus, adminStatus: rawAdminStatus } = req.query;
-    const companyStatus = typeof rawCompanyStatus === "string" ? rawCompanyStatus : undefined;
-    const workStatus = typeof rawWorkStatus === "string" ? rawWorkStatus : undefined;
-    const adminStatus = typeof rawAdminStatus === "string" ? rawAdminStatus : undefined;
+    const { page, limit } = req.query;
     if (!workerId) throw new Error("Unauthorized");
     if (req?.user?.role !== "WORKER") throw new Error("Forbidden");
-    const assignments = await jobService.getMyJobAssignments(workerId, { companyStatus, workStatus, adminStatus });
-    res.json(assignments);
+    const result = await jobService.getMyJobInvitations(workerId, page ? Number(page) : 1, limit ? Number(limit) : 20);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getMyJobInvitations = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const workerId = req?.user?.id;
+    const { page, limit } = req.query;
+    if (!workerId) throw new Error("Unauthorized");
+    if (req?.user?.role !== "WORKER") throw new Error("Forbidden");
+    const result = await jobService.getMyJobInvitations(workerId, page ? Number(page) : 1, limit ? Number(limit) : 20);
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+};
+
+export const getMyApprovedJobs = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const workerId = req?.user?.id;
+    const { page, limit } = req.query;
+    if (!workerId) throw new Error("Unauthorized");
+    if (req?.user?.role !== "WORKER") throw new Error("Forbidden");
+    const result = await jobService.getMyApprovedJobs(workerId, page ? Number(page) : 1, limit ? Number(limit) : 20);
+    res.json(result);
   } catch (err) {
     next(err);
   }
@@ -245,10 +276,15 @@ export const getMyJobAssignments = async (req: Request, res: Response, next: Nex
 export const getMyJobHistory = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const workerId = req?.user?.id;
+    const { page, limit } = req.query;
     if (!workerId) throw new Error("Unauthorized");
     if (req?.user?.role !== "WORKER") throw new Error("Forbidden");
-    const assignments = await jobService.getMyJobHistory(workerId);
-    res.json(assignments);
+    const result = await jobService.getMyJobHistory(
+      workerId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined
+    );
+    res.json(result);
   } catch (err) {
     next(err);
   }

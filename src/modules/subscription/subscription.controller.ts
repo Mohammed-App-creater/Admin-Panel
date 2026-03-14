@@ -15,13 +15,13 @@ export const getSubscription = async (req: Request, res: Response) => {
 
 export const listSubscriptions = async (req: Request, res: Response) => {
   try {
-    const { userId, planId, status, take, skip } = req.query;
+    const { userId, planId, status, page, limit } = req.query;
     const subs = await subscriptionService.listSubscriptions({
       userId: userId as string,
       planId: planId as string,
       status: status as string,
-      take: take ? Number(take) : undefined,
-      skip: skip ? Number(skip) : undefined,
+      page: page ? Number(page) : undefined,
+      limit: limit ? Number(limit) : undefined,
     });
     return res.json(successResponse(subs, "Subscriptions retrieved successfully"));
   } catch (err: any) {
@@ -76,7 +76,9 @@ export const mySubscriptions = async (req: Request, res: Response) => {
     if (!userId) {
       return res.status(401).json(errorResponse("Unauthorized"));
     }
-    const subscriptions = await subscriptionService.getMySubscriptions(userId);
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const subscriptions = await subscriptionService.getMySubscriptions(userId, page, limit);
     return res.json(successResponse(subscriptions, "My subscriptions retrieved successfully"));
   } catch (err: any) {
     return res.status(500).json(errorResponse(err.message || "Failed to retrieve subscriptions"));

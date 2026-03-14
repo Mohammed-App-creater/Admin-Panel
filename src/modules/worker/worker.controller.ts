@@ -38,6 +38,20 @@ export const getWorkers = async (req: Request, res: Response, next: NextFunction
   }
 };
 
+// GET verification status for the authenticated worker
+export const getVerificationStatus = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req?.user?.id;
+    if (!userId) return res.status(401).json(errorResponse("Unauthorized"));
+    if (req?.user?.role !== "WORKER") return res.status(403).json(errorResponse("Only workers can access this endpoint"));
+    const status = await workerService.getVerificationStatusByUserId(userId);
+    if (!status) return res.status(404).json(errorResponse("Worker profile not found"));
+    return res.json(successResponse(status, "Verification status retrieved"));
+  } catch (err: any) {
+    next(err);
+  }
+};
+
 // GET worker details by ID
 export const getWorkerById = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -178,7 +192,9 @@ export const rejectJobAssignment = async (req: Request, res: Response, next: Nex
 
 export const getWorkerJobApplications = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const applications = await workerService.getWorkerJobApplications(req.params.workerId);
+    const page = req.query.page ? Number(req.query.page) : undefined;
+    const limit = req.query.limit ? Number(req.query.limit) : undefined;
+    const applications = await workerService.getWorkerJobApplications(req.params.workerId, page, limit);
     res.json(successResponse(applications));
   } catch (err: any) {
     next(err);

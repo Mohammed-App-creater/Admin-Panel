@@ -74,6 +74,11 @@ export const applicationsSchema = z.object({
   workerId: z.uuid("Invalid Application Id or Not Found")
 });
 
+export const workerApplicationsQuerySchema = z.object({
+  page: z.preprocess((v) => (v !== undefined && v !== "" ? Number(v) : undefined), z.number().int().min(1).optional()),
+  limit: z.preprocess((v) => (v !== undefined && v !== "" ? Number(v) : undefined), z.number().int().min(1).max(100).optional()),
+});
+
 export const workerIdSchema = z.object({
   workerId: z.uuid("Invalid Worker Id or Not Found")
 });

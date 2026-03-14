@@ -1,6 +1,6 @@
 import { Router } from "express";
 import * as controller from "./plan.controller";
-import { createPlanSchema, updatePlanSchema, idSchema } from "./plan.validation";
+import { createPlanSchema, updatePlanSchema, idSchema, listPlansQuerySchema } from "./plan.validation";
 import { authorize } from "../../middlewares/authorize";
 import { authenticate } from "../../middlewares/authMiddleware";
 import validate from "../../middlewares/validate";
@@ -26,13 +26,18 @@ const router = Router();
  *       - bearerAuth: []
  *     parameters:
  *       - in: query
- *         name: take
+ *         name: page
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           default: 1
  *       - in: query
- *         name: skip
+ *         name: limit
  *         schema:
  *           type: integer
+ *           minimum: 1
+ *           maximum: 100
+ *           default: 20
  *     responses:
  *       200:
  *         description: Array of plans
@@ -43,7 +48,7 @@ const router = Router();
  *               items:
  *                 $ref: '#/components/schemas/Plan'
  */
-router.get("/", controller.listPlans);
+router.get("/", validate(listPlansQuerySchema, "query"), controller.listPlans);
 
 // Admin-only CRUD for plans
 // router.use(authorize("ADMIN"));

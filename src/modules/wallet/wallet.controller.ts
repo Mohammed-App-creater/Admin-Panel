@@ -5,7 +5,9 @@ import * as walletService from "./wallet.service";
 // GET all wallets
 export const getAllWallets = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const wallets = await walletService.getAllWallets();
+    const page = req.query.page ? Number(req.query.page) : 1;
+    const limit = req.query.limit ? Number(req.query.limit) : 20;
+    const wallets = await walletService.getAllWallets(page, limit);
     res.json(successResponse(wallets, "Wallets retrieved successfully"));
   } catch (err: any) {
     next(err)
@@ -46,8 +48,13 @@ export const adjustWalletBalance = async (req: Request, res: Response, next: Nex
 // GET transactions
 export const getTransactions = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const { type } = req.query;
-    const transactions = await walletService.getTransactions(req.params.walletId, type as any);
+    const { type, page, limit } = req.query;
+    const transactions = await walletService.getTransactions(
+      req.params.walletId,
+      type as any,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined
+    );
     res.json(successResponse(transactions, "Transactions retrieved successfully"));
   } catch (err: any) {
     next(err);
@@ -67,7 +74,12 @@ export const getTransactionById = async (req: Request, res: Response, next: Next
 // Get transaction by userId
 export const getTransactionByUserId = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const transactions = await walletService.getTransactionByUserId(req.params.userId);
+    const { page, limit } = req.query;
+    const transactions = await walletService.getTransactionByUserId(
+      req.params.userId,
+      page ? Number(page) : undefined,
+      limit ? Number(limit) : undefined
+    );
     res.json(successResponse(transactions, "Transactions retrieved successfully"));
   } catch (err: any) {
     next(err);

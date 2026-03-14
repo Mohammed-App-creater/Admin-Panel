@@ -27,12 +27,26 @@ export const createPlan = async (data: CreatePlanDto) => {
     });
 };
 
-export const getPlans = async (take = 20, skip = 0) => {
-    return prisma.plan.findMany({
-        take,
-        skip,
-        orderBy: { createdAt: "desc" },
-    });
+export const getPlans = async (page = 1, limit = 20) => {
+  const take = Math.min(100, Math.max(1, limit ?? 20));
+  const skip = (Math.max(1, page ?? 1) - 1) * take;
+  const [items, total] = await Promise.all([
+    prisma.plan.findMany({
+      take,
+      skip,
+      orderBy: { createdAt: "desc" },
+    }),
+    prisma.plan.count(),
+  ]);
+  return {
+    items,
+    meta: {
+      total,
+      page: Math.max(1, page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    },
+  };
 };
 
 export const getPlanById = async (id: string) => {
