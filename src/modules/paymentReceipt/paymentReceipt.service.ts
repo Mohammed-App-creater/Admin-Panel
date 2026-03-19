@@ -12,26 +12,55 @@ export type CreateReceiptDto = {
 };
 
 export const createReceipt = async (userId: string, dto: CreateReceiptDto) => {
-  const [bank, plan] = await prisma.$transaction([
-    prisma.bank.findUnique({ where: { id: dto.bankId } }),
-    prisma.plan.findUnique({ where: { id: dto.planId } }),
-  ]);
+  const computeEndDate = (start: Date, interval: string): Date => {
+    const end = new Date(start);
+    if (interval === "MONTHLY") end.setMonth(end.getMonth() + 1);
+    else if (interval === "YEARLY") end.setFullYear(end.getFullYear() + 1);
+    else if (interval === "WEEKLY") end.setDate(end.getDate() + 7);
+    else end.setMonth(end.getMonth() + 1);
+    return end;
+  };
 
-  if (!bank) throw new Error("Bank not found");
-  if (!plan) throw new Error("Plan not found");
-  if (bank.status !== "ACTIVE") throw new Error("Bank is not active");
-  if (plan?.status !== "ACTIVE") throw new Error("Plan is not active");
+  return prisma.$transaction(async (tx) => {
+    const bank = await tx.bank.findUnique({ where: { id: dto.bankId } });
+    if (!bank) throw new Error("Bank not found");
+    if (bank.status !== "ACTIVE") throw new Error("Bank is not active");
 
-  return prisma.paymentReceipt.create({
-    data: {
-      userId,
-      bankId: dto.bankId,
-      planId: dto.planId,
-      amount: dto.amount,
-      referenceNo: dto.referenceNo,
-      screenshot: dto.screenshot,
-      status: "PENDING",
-    },
+    const plan = dto.planId ? await tx.plan.findUnique({ where: { id: dto.planId } }) : null;
+    if (dto.planId && !plan) throw new Error("Plan not found");
+    if (plan?.status !== "ACTIVE") throw new Error("Plan is not active");
+
+    const createdReceipt = await tx.paymentReceipt.create({
+      data: {
+        userId,
+        bankId: dto.bankId,
+        planId: dto.planId ?? null,
+        amount: dto.amount,
+        referenceNo: dto.referenceNo,
+        screenshot: dto.screenshot,
+        status: "PENDING",
+      },
+    });
+
+    // For plan payments: immediately create a pending subscription linked to this receipt.
+    if (plan) {
+      const start = new Date();
+      const end = computeEndDate(start, plan.interval);
+
+      await tx.subscription.create({
+        data: {
+          userId,
+          planId: plan.id,
+          status: "PENDING",
+          startDate: start,
+          endDate: end,
+          autoRenew: false,
+          paymentReceiptId: createdReceipt.id,
+        },
+      });
+    }
+
+    return createdReceipt;
   });
 };
 
@@ -180,21 +209,46 @@ export const adminApproveReceipt = async (receiptId: string, adminUserId: string
         include: { transaction: true, user: true, plan: true },
       });
 
-      // 4) If planId present -> create subscription (using subscription service, passing tx)
-      let subscription = null;
+      // 4) If planId present -> move pending subscription to ACTIVE
+      let subscription: any = null;
       if (receipt.planId) {
-        subscription = await subscriptionService.createSubscription(
-          {
-            userId: receipt.userId,
-            planId: receipt.planId,
-            startDate: new Date(),
-            endDate: precomputedEndDate,
-            autoRenew: false,
-            status: "ACTIVE",
-            skipPlanFetch: true, // avoid extra plan fetch inside service
-          },
-          tx
-        );
+        const existing = await tx.subscription.findUnique({
+          where: { paymentReceiptId: receiptId },
+          include: { plan: true, user: true },
+        });
+
+        if (existing) {
+          subscription = await tx.subscription.update({
+            where: { id: existing.id },
+            data: {
+              status: "ACTIVE",
+              startDate: new Date(),
+              endDate: precomputedEndDate,
+              autoRenew: false,
+            },
+            include: { plan: true, user: true },
+          });
+
+          subscription = {
+            ...subscription,
+            daysLeft: subscriptionService.calculateDaysLeft(subscription),
+          };
+        } else {
+          // Fallback: if subscription wasn't created for some reason, create it now.
+          subscription = await subscriptionService.createSubscription(
+            {
+              userId: receipt.userId,
+              planId: receipt.planId,
+              startDate: new Date(),
+              endDate: precomputedEndDate,
+              autoRenew: false,
+              status: "ACTIVE",
+              skipPlanFetch: true,
+              paymentReceiptId: receiptId,
+            },
+            tx
+          );
+        }
       }
 
       // 5) Optionally create a notification inside transaction (lightweight)
@@ -247,7 +301,7 @@ export const adminRejectReceipt = async (receiptId: string, adminUserId: string,
   if (receipt.status !== "PENDING") throw new Error("Receipt already processed");
   // Update status to REJECTED and optionally set a reason if you included such a field in the schema
   // If you don't have a rejectionReason column, just update status & verifiedBy
-  return prisma.paymentReceipt.update({
+  const updated = await prisma.paymentReceipt.update({
     where: { id: receiptId },
     data: {
       status: "REJECTED",
@@ -255,4 +309,13 @@ export const adminRejectReceipt = async (receiptId: string, adminUserId: string,
       // rejectionReason: reason, // uncomment if model has this field
     },
   });
+
+  // If this receipt was for a plan, remove the pending subscription from the user.
+  if (receipt.planId) {
+    await prisma.subscription.deleteMany({
+      where: { paymentReceiptId: receiptId, status: "PENDING" },
+    });
+  }
+
+  return updated;
 };

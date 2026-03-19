@@ -319,6 +319,8 @@ model PaymentReceipt {
   updatedAt        DateTime           @updatedAt
   Transaction      Transaction[]
   ChapaTransaction ChapaTransaction[]
+
+  subscription Subscription?
 }
 
 model Category {
@@ -424,6 +426,11 @@ model Subscription {
 
   user      User     @relation(fields: [userId], references: [id])
   plan      Plan     @relation(fields: [planId], references: [id])
+
+  // Links a plan payment receipt to its subscription lifecycle.
+  paymentReceiptId String?        @unique
+  paymentReceipt   PaymentReceipt? @relation(fields: [paymentReceiptId], references: [id])
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

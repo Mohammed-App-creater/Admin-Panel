@@ -10,6 +10,7 @@ export type CreateSubscriptionDto = {
     autoRenew?: boolean;
     status?: "ACTIVE" | "INACTIVE" | "CANCELLED" | string;
     skipPlanFetch?: boolean;
+    paymentReceiptId?: string;
 };
 
 export const calculateDaysLeft = (subscription: any): number => {
@@ -17,6 +18,9 @@ export const calculateDaysLeft = (subscription: any): number => {
     const start = subscription.startDate ? new Date(subscription.startDate) : null;
     const endFromRow = subscription.endDate ? new Date(subscription.endDate) : null;
     const planInterval = subscription.plan?.interval;
+
+    // Pending subscriptions shouldn't count down until activated.
+    if (subscription.status === "PENDING") return 0;
 
     // choose end date hierarchy: row endDate -> infer from startDate & plan interval -> 0 days left
     let end: Date | null = endFromRow;
@@ -68,6 +72,7 @@ export const createSubscription = async (
             startDate: start,
             endDate: end,
             autoRenew: dto.autoRenew ?? false,
+            paymentReceiptId: dto.paymentReceiptId,
         },
         include: { plan: true, user: true },
     });
@@ -191,13 +196,9 @@ export const getMyActiveSubscription = async (userId: string) => {
     const subs = await prisma.subscription.findMany({
         where: {
             userId,
-            OR: [
-                { status: "ACTIVE" },
-                { status: "PENDING" }
-            ]
+            status: "ACTIVE",
         },
         include: { plan: true, user: true },
     });
-    if (!subs) throw new Error("Active subscription not found");
     return subs.map((s) => ({ ...s, daysLeft: calculateDaysLeft(s) }));
 };

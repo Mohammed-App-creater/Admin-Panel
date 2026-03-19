@@ -52,6 +52,24 @@ router.get("/me", authenticate, validate(mySubscriptionsQuerySchema, "query"), c
 
 /**
  * @swagger
+ * /subscription/me/all:
+ *   get:
+ *     summary: Get all my subscriptions (all states)
+ *     tags: [Subscription]
+ *     responses:
+ *       200:
+ *         description: My subscriptions (all states)
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 $ref: '#/components/schemas/Subscription'
+ */
+router.get("/me/all", authenticate, validate(mySubscriptionsQuerySchema, "query"), controller.mySubscriptions);
+
+/**
+ * @swagger
  * /subscription/me/active:
  *   get:
  *     summary: Get my active subscription
