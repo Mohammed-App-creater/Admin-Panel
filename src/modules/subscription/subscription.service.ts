@@ -189,7 +189,13 @@ export const getMySubscriptions = async (userId: string, page = 1, limit = 20) =
 
 export const getMyActiveSubscription = async (userId: string) => {
     const subs = await prisma.subscription.findMany({
-        where: { userId, status: "ACTIVE" },
+        where: {
+            userId,
+            OR: [
+                { status: "ACTIVE" },
+                { status: "PENDING" }
+            ]
+        },
         include: { plan: true, user: true },
     });
     if (!subs) throw new Error("Active subscription not found");
