@@ -32,6 +32,21 @@ export const deleteJob = async (req: Request, res: Response, next: NextFunction)
   }
 };
 
+// Close job (company: own jobs only; admin: any) — sets status to CLOSED without deleting
+export const closeJob = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req?.user?.id as string | undefined;
+    const role = req?.user?.role as string | undefined;
+    if (!userId || !role) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    const job = await jobService.closeJobForCompany(req.params.id, userId, role);
+    res.json({ message: "Job closed", job });
+  } catch (err: any) {
+    next(err);
+  }
+};
+
 // Get all jobs
 export const getJobs = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -82,15 +97,20 @@ export const rejectApplication = async (req: Request, res: Response, next: NextF
   }
 };
 
-// Assign Worker to job
+// Assign Worker to job (company invite)
 export const assignWorkerToJob = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    const application = await jobService.assignWorkerToJob(req.params.jobId, req.params.workerId);
+    const userId = req?.user?.id as string | undefined;
+    const role = req?.user?.role as string | undefined;
+    if (!userId || !role) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    const application = await jobService.assignWorkerToJob(req.params.jobId, req.params.workerId, {
+      inviterUserId: userId,
+      inviterRole: role,
+    });
     res.json(application);
   } catch (err: any) {
-    if (err.message === "Worker already has a pending or active job assignment") {
-      res.status(400);
-    }
     next(err);
   }
 };

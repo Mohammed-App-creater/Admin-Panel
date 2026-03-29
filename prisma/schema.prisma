@@ -258,6 +258,8 @@ model WorkerJobApplication {
   status             ApplicationStatus @default(PENDING)
   acceptedAssignment ApplicationStatus @default(PENDING)
   appliedAt          DateTime          @default(now())
+
+  @@unique([jobId, workerId])
 }
 
 model Wallet {

@@ -1,5 +1,5 @@
 import prisma from "../../config/prisma";
-import { ApplicationStatus, JobStatus } from "@prisma/client";
+import { ApplicationStatus, JobStatus, Prisma } from "@prisma/client";
 import { NotificationService } from "../notification/notification.service";
 import { NotificationRuleService } from "../notification/notificationRuleService";
 import { sendEmail } from "../../utils/mailer";
@@ -133,6 +133,41 @@ export const deleteJob = async (jobId: string) => {
   return prisma.job.delete({ where: { id: jobId } });
 };
 
+/** Sets job status to CLOSED. COMPANY users may only close their own jobs; ADMIN may close any. */
+export const closeJobForCompany = async (jobId: string, userId: string, userRole: string) => {
+  const job = await prisma.job.findUnique({
+    where: { id: jobId },
+    include: { company: true },
+  });
+  if (!job) {
+    throw Object.assign(new Error("Job not found"), { status: 404 });
+  }
+
+  if (userRole === "ADMIN") {
+    // allowed
+  } else if (userRole === "COMPANY") {
+    const company = await prisma.company.findUnique({ where: { userId } });
+    if (!company || company.id !== job.companyId) {
+      throw Object.assign(new Error("Forbidden"), { status: 403 });
+    }
+  } else {
+    throw Object.assign(new Error("Forbidden"), { status: 403 });
+  }
+
+  if (job.status === JobStatus.CLOSED) {
+    return prisma.job.findUnique({
+      where: { id: jobId },
+      include: { company: { include: { user: true } } },
+    });
+  }
+
+  return prisma.job.update({
+    where: { id: jobId },
+    data: { status: JobStatus.CLOSED },
+    include: { company: { include: { user: true } } },
+  });
+};
+
 // Get all jobs with optional filters
 export const getJobs = async (filters?: {
   status?: JobStatus;
@@ -261,29 +296,64 @@ export const rejectApplication = async (applicationId: string) => {
   return updatedApplication;
 };
 
-export const assignWorkerToJob = async (jobId: string, workerId: string) => {
+export type AssignWorkerContext = {
+  inviterUserId: string;
+  inviterRole: string;
+};
+
+function httpError(message: string, status: number): Error & { status: number } {
+  const e = new Error(message) as Error & { status: number };
+  e.status = status;
+  return e;
+}
+
+/**
+ * Company (or admin) invites a worker to a job: creates a WorkerJobApplication with
+ * status ASSIGNED and acceptedAssignment PENDING until the worker accepts or rejects.
+ * See getMyJobInvitations — it lists the same shape.
+ */
+export const assignWorkerToJob = async (
+  jobId: string,
+  workerId: string,
+  ctx?: AssignWorkerContext
+) => {
   const job = await prisma.job.findUnique({ where: { id: jobId } });
   const worker = await prisma.worker.findUnique({ where: { id: workerId } });
 
   if (!job) throw new Error("Job not found");
   if (!worker) throw new Error("Worker not found");
 
-  // Check if worker already has a pending or accepted job (any job)
-  const existingAssignment = await prisma.workerJobApplication.findFirst({
-    where: {
-      workerId,
-      status: { in: ["PENDING", "ACCEPTED", "ASSIGNED"] }, // include ASSIGNED if needed
-    },
-  });
+  if (ctx?.inviterUserId && ctx?.inviterRole) {
+    if (ctx.inviterRole === "ADMIN") {
+      // admin may invite to any job
+    } else if (ctx.inviterRole === "COMPANY") {
+      const company = await prisma.company.findUnique({ where: { userId: ctx.inviterUserId } });
+      if (!company || company.id !== job.companyId) {
+        throw httpError("You can only invite workers to your own jobs", 403);
+      }
+    } else {
+      throw httpError("Forbidden", 403);
+    }
+  }
 
-  // if (existingAssignment) {
-  //   throw new Error("Worker already has a pending or active job assignment");
-  // }
-
-  // Otherwise, assign them
-  const application = await prisma.workerJobApplication.create({
-    data: { workerId, jobId, status: "ASSIGNED" },
+  const existingForJob = await prisma.workerJobApplication.findUnique({
+    where: { jobId_workerId: { jobId, workerId } },
   });
+  if (existingForJob) {
+    throw httpError("Worker already invited to this job", 400);
+  }
+
+  let application;
+  try {
+    application = await prisma.workerJobApplication.create({
+      data: { workerId, jobId, status: "ASSIGNED", acceptedAssignment: "PENDING" },
+    });
+  } catch (err) {
+    if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      throw httpError("Worker already invited to this job", 400);
+    }
+    throw err;
+  }
 
   // Notify asynchronously (non-blocking)
   (async () => {
@@ -672,13 +742,17 @@ export const getMyJobHistory = async (workerId: string, page = 1, limit = 20) =>
   };
 };
 
-/** Job invitations: jobs assigned to worker awaiting accept/reject. acceptedAssignment stays PENDING until worker responds. */
+/**
+ * Job offers / invitations for the worker: company invites use status ASSIGNED and
+ * acceptedAssignment PENDING until acceptAssignment / rejectAssignment runs.
+ * (Do not require status ACCEPTED here — that field is used elsewhere in the pipeline.)
+ */
 export const getMyJobInvitations = async (workerId: string, page = 1, limit = 20) => {
   const worker = await prisma.worker.findUnique({ where: { userId: workerId } });
   if (!worker) throw new Error("Worker not found");
   const where = {
     workerId: worker.id,
-    status: ApplicationStatus.ACCEPTED,
+    status: ApplicationStatus.ASSIGNED,
     acceptedAssignment: ApplicationStatus.PENDING,
   };
   const take = Math.min(100, Math.max(1, limit ?? 20));

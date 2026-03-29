@@ -234,6 +234,35 @@ router.post("/:companyId", authenticate, validate(companyIdParamSchema, "params"
 
 /**
  * @openapi
+ * /jobs/{id}/close:
+ *   patch:
+ *     tags:
+ *       - Job
+ *     summary: Close a job (company owner or admin)
+ *     description: Sets the job status to CLOSED without deleting the record. Company users may only close jobs belonging to their company.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Job ID (uuid)
+ *     responses:
+ *       200:
+ *         description: Job closed
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden — not the job owner
+ *       404:
+ *         description: Job not found
+ */
+router.patch("/:id/close", authenticate, validate(jobIdParamSchema, "params"), jobController.closeJob);
+
+/**
+ * @openapi
  * /jobs/{id}:
  *   patch:
  *     tags:
@@ -460,8 +489,10 @@ router.post("/job/:job/worker/:workerId/apply", validate(applyToJobSchema, "para
  *   post:
  *     tags:
  *       - Job
- *     summary: Assign a worker to a job (authenticated)
- *     description: Creates an assignment/application linking a worker to a job. Validates `jobId` and `workerId` as uuids.
+ *     summary: Invite / assign a worker to a job (company or admin)
+ *     description: |
+ *       Creates a company invitation (`status` ASSIGNED, `acceptedAssignment` PENDING) visible in `GET /jobs/invitations/me`.
+ *       Only the job's owning company or an admin may call this. Duplicate (same job + worker) returns 400.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -480,10 +511,20 @@ router.post("/job/:job/worker/:workerId/apply", validate(applyToJobSchema, "para
  *     responses:
  *       200:
  *         description: Worker assigned to job
+ *       400:
+ *         description: Worker already invited to this job
+ *       403:
+ *         description: Only the job owner company or admin may invite
  *       404:
  *         description: Job or worker not found
  */
-router.post("/:jobId/assign/:workerId", validate(assignWorkerParamsSchema, "params"), authenticate, jobController.assignWorkerToJob);
+router.post(
+  "/:jobId/assign/:workerId",
+  validate(assignWorkerParamsSchema, "params"),
+  authenticate,
+  authorize("COMPANY", "ADMIN"),
+  jobController.assignWorkerToJob
+);
 
 /**
  * /jobs/admin/{applicationId}/approve:
