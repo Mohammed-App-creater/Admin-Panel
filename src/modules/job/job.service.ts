@@ -196,8 +196,8 @@ export const getJobs = async (filters?: {
       company: { include: { user: true } },
       applications: { include: { worker: { include: { user: true } } } },
     },
-    skip: filters?.page && filters?.limit ? filters.page * filters.limit : 0,
-    take: filters?.limit ?? 10,
+    skip: filters?.page && filters?.limit ? Number(filters.page) * Number(filters.limit) : 0,
+    take: Number(filters?.limit) ?? 10,
   });
 };
 
