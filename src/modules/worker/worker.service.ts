@@ -186,7 +186,7 @@ export const getVerificationStatusByUserId = async (userId: string) => {
 // Get worker details by ID
 export const getWorkerById = async (workerId: string) => {
   return prisma.worker.findUnique({
-    where: { id: workerId , isAvailable: true },
+    where: { id: workerId, isAvailable: true },
     include: {
       user: true,
       licenses: true,
@@ -195,22 +195,29 @@ export const getWorkerById = async (workerId: string) => {
 };
 
 export const workerRegister = async (data: any) => {
-  const workerExist = await prisma.user.findUnique({
-    where: { email: data.email },
-  });
-  if (workerExist) throw new Error("Email already taken");
+  const email =
+    typeof data.email === "string" && data.email.trim().length > 0
+      ? data.email.trim()
+      : null;
+
+  if (email) {
+    const workerExist = await prisma.user.findUnique({
+      where: { email },
+    });
+    if (workerExist) throw new Error("Email already taken");
+  }
 
   const phoneExist = await prisma.user.findUnique({
     where: { phone: data.phone },
   });
   if (phoneExist) throw new Error("Phone number already taken");
 
-  const { fullName, email, phone, password, role, location, skills, portfolio, availability, experience, categoryId, roleId, specialityIds, workTypeIds } = data;
+  const { fullName, phone, password, role, location, skills, portfolio, availability, experience, categoryId, roleId, specialityIds, workTypeIds } = data;
   const passwordHash = await bcrypt.hash(password, 10);
   const newWorkerUser = await prisma.user.create({
     data: {
       fullName,
-      email,
+      email: email ?? undefined,
       phone,
       passwordHash,
       role,

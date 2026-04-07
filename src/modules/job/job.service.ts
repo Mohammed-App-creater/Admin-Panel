@@ -74,7 +74,9 @@ export const createJob = async (data: {
         });
 
         await Promise.all(
-          users.map((user) =>
+          users
+            .filter((u): u is { email: string } => u.email != null && u.email !== "")
+            .map((user) =>
             sendEmail(
               user.email,
               `🚀 New Job Alert: ${job.title} at ${company.user.fullName}`,
@@ -336,8 +338,8 @@ export const assignWorkerToJob = async (
     }
   }
 
-  const existingForJob = await prisma.workerJobApplication.findUnique({
-    where: { jobId_workerId: { jobId, workerId } },
+  const existingForJob = await prisma.workerJobApplication.findFirst({
+    where: { jobId, workerId },
   });
   if (existingForJob) {
     throw httpError("Worker already invited to this job", 400);
@@ -773,13 +775,17 @@ export const getMyJobInvitations = async (workerId: string, page = 1, limit = 20
   };
 };
 
-/** Approved jobs: jobs worker has accepted, admin-approved, and job is still ACTIVE or IN_PROGRESS. */
+/**
+ * Approved jobs: admin-approved, worker accepted assignment, job still ACTIVE or IN_PROGRESS.
+ * `status` stays ASSIGNED on the company-invite pipeline (assignWorkerToJob → acceptAssignment only
+ * flips `acceptedAssignment`); the apply pipeline uses status ACCEPTED after acceptApplication.
+ */
 export const getMyApprovedJobs = async (workerId: string, page = 1, limit = 20) => {
   const worker = await prisma.worker.findUnique({ where: { userId: workerId } });
   if (!worker) throw new Error("Worker not found");
   const where = {
     workerId: worker.id,
-    status: ApplicationStatus.ACCEPTED,
+    status: { in: [ApplicationStatus.ACCEPTED, ApplicationStatus.ASSIGNED] },
     adminApproved: ApplicationStatus.ACCEPTED,
     acceptedAssignment: ApplicationStatus.ACCEPTED,
     job: { status: { in: [JobStatus.ACTIVE, JobStatus.IN_PROGRESS] } },

@@ -6,7 +6,6 @@ import jwt from "jsonwebtoken";
 import { ENV } from "../../config/env";
 import { UserStatus, VerificationStatus } from "@prisma/client";
 import { sendResetEmail } from "../../utils/mailer";
-import { el } from "@faker-js/faker/.";
 import { NotificationService } from "../notification/notification.service";
 import {normalizeEthiopianPhone} from "../../utils/normalization";
 
@@ -20,7 +19,7 @@ export const register = async (data: any) => {
   // Normalize phone number
   const normalizedPhone = normalizeEthiopianPhone(phone);
   // Check if user already exists
-  const existingUser = await prisma.user.findUnique({ where: { email } }) || await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+  const existingUser = email ? await prisma.user.findUnique({ where: { email } }) : false || await prisma.user.findUnique({ where: { phone: normalizedPhone } });
   if (existingUser) {
     throw new Error("User already exists with this email or phone number");
   }
@@ -137,7 +136,12 @@ export const approveUser = async (userId: string) => {
 
   (async () => {
     try {
-      await sendResetEmail(user?.email, "Your account has been approved by admin. You can now log in and start using our services.");
+      if (user.email) {
+        await sendResetEmail(
+          user.email,
+          "Your account has been approved by admin. You can now log in and start using our services."
+        );
+      }
     } catch (error) {
       console.error("Error sending email:", error);
     }
@@ -169,6 +173,7 @@ export const rejectUser = async (userId: string) => {
 };
 
 export const requestPasswordReset = async (email: string) => {
+  if (!email) return { status: 400, message: "Email is required to request password reset" };
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return { status: 404, message: "User not found" };
   const code = generateCode();
@@ -184,6 +189,7 @@ export const requestPasswordReset = async (email: string) => {
 }
 
 export const verifyResetCode = async (email: string, code: string) => {
+  if (!email) return { status: 400, message: "Email is required to verify reset code" };
   const user = await prisma.user.findUnique({ where: { email } });
   if (!user) return { status: 404, message: "User not found" };
 

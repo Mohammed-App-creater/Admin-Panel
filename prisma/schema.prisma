@@ -1,17 +1,331 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
-  // output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id                String             @id @default(uuid())
+  email             String?            @unique
+  passwordHash      String
+  role              UserRole
+  status            UserStatus         @default(ACTIVE)
+  verification      VerificationStatus @default(PENDING)
+  referralCode      String?            @unique
+  referredBy        String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  tokenVersion      Int                @default(0)
+  phone             String             @unique
+  location          String?
+  fullName          String
+  ChapaTransaction  ChapaTransaction[]
+  companyProfile    Company?
+  Notification      Notification[]
+  PasswordReset     PasswordReset[]
+  submittedReceipts PaymentReceipt[]   @relation("UserSubmittedReceipts")
+  verifiedReceipts  PaymentReceipt[]   @relation("ReceiptVerifiedBy")
+  Review            Review[]
+  Subscription      Subscription[]
+  wallet            Wallet?
+  workerProfile     Worker?
+
+  @@index([referredBy])
+  @@index([status, verification])
+  @@index([createdAt])
+}
+
+model Worker {
+  id               String                 @id @default(uuid())
+  userId           String                 @unique
+  skills           String[]
+  experience       String?
+  portfolio        String[]
+  availability     Json?
+  badges           String[]
+  professionalRole String?
+  workType         String[]
+  nationalIdUrl    String?
+  profilePhoto     String?
+  categoryId       String?
+  roleId           String?
+  isAvailable      Boolean                @default(true)
+  licenses         License[]
+  reviews          Review[]
+  category         Category?              @relation(fields: [categoryId], references: [id])
+  Role             Role?                  @relation(fields: [roleId], references: [id])
+  user             User                   @relation(fields: [userId], references: [id])
+  applications     WorkerJobApplication[]
+  specialities     WorkerSpeciality[]
+  workTypes        WorkerWorkType[]
+
+  @@index([categoryId])
+  @@index([roleId])
+}
+
+model PasswordReset {
+  id        String   @id @default(uuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model License {
+  id          String    @id @default(uuid())
+  workerId    String
+  name        String?
+  issuedAt    DateTime
+  expiresAt   DateTime?
+  documentUrl String
+  worker      Worker    @relation(fields: [workerId], references: [id])
+}
+
+model Review {
+  id        String   @id @default(uuid())
+  rating    Int
+  comment   String?
+  createdAt DateTime @default(now())
+  userId    String
+  companyId String
+  workerId  String?
+  company   Company  @relation(fields: [companyId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+  Worker    Worker?  @relation(fields: [workerId], references: [id])
+
+  @@unique([userId, companyId])
+}
+
+model Company {
+  id                    String   @id @default(uuid())
+  userId                String   @unique
+  verificationDocuments String[]
+  businessLocation      String?
+  companyLogo           String?
+  user                  User     @relation(fields: [userId], references: [id])
+  jobs                  Job[]
+  Review                Review[]
+}
+
+model Job {
+  id                String                 @id @default(uuid())
+  title             String
+  description       String
+  requiredSkills    String[]
+  payRate           Float
+  status            JobStatus              @default(ACTIVE)
+  companyId         String
+  createdAt         DateTime               @default(now())
+  additionalInfo    String?
+  duration          DateTime?
+  jobLocation       String?
+  jobType           String?
+  numbersNeedWorker Int                    @default(1)
+  startDate         DateTime?
+  company           Company                @relation(fields: [companyId], references: [id])
+  applications      WorkerJobApplication[]
+}
+
+model WorkerJobApplication {
+  id                 String            @id @default(uuid())
+  workerId           String
+  jobId              String
+  appliedAt          DateTime          @default(now())
+  adminApproved      ApplicationStatus @default(PENDING)
+  status             ApplicationStatus @default(PENDING)
+  acceptedAssignment ApplicationStatus @default(PENDING)
+  job                Job               @relation(fields: [jobId], references: [id])
+  worker             Worker            @relation(fields: [workerId], references: [id])
+}
+
+model Wallet {
+  id               String             @id @default(uuid())
+  userId           String             @unique
+  balance          Float              @default(0.0)
+  currency         String             @default("ETB")
+  ChapaTransaction ChapaTransaction[]
+  transactions     Transaction[]
+  user             User               @relation(fields: [userId], references: [id])
+}
+
+model Transaction {
+  id               String             @id @default(uuid())
+  walletId         String
+  type             TransactionType
+  amount           Float
+  createdAt        DateTime           @default(now())
+  paymentReceiptId String?
+  ChapaTransaction ChapaTransaction[]
+  receipt          PaymentReceipt?    @relation("ReceiptTransaction")
+  wallet           Wallet             @relation(fields: [walletId], references: [id])
+  PaymentReceipt   PaymentReceipt[]   @relation("PaymentReceiptToTransaction")
+}
+
+model Bank {
+  id          String           @id @default(uuid())
+  name        String
+  accountName String
+  accountNo   String
+  type        BankType
+  status      BankStatus       @default(ACTIVE)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  receipts    PaymentReceipt[]
+}
+
+model PaymentReceipt {
+  id               String             @id @default(uuid())
+  userId           String
+  bankId           String
+  planId           String?
+  amount           Float
+  referenceNo      String?
+  screenshot       String
+  status           ReceiptStatus      @default(PENDING)
+  verifiedById     String?
+  transactionId    String?            @unique
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  ChapaTransaction ChapaTransaction[]
+  bank             Bank               @relation(fields: [bankId], references: [id])
+  plan             Plan?              @relation(fields: [planId], references: [id])
+  transaction      Transaction?       @relation("ReceiptTransaction", fields: [transactionId], references: [id])
+  user             User               @relation("UserSubmittedReceipts", fields: [userId], references: [id])
+  verifiedBy       User?              @relation("ReceiptVerifiedBy", fields: [verifiedById], references: [id])
+  subscription     Subscription?
+  Transaction      Transaction[]      @relation("PaymentReceiptToTransaction")
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  roles       Role[]
+  Worker      Worker[]
+}
+
+model Role {
+  id           String       @id @default(uuid())
+  name         String       @unique
+  categoryId   String
+  description  String?
+  category     Category     @relation(fields: [categoryId], references: [id])
+  specialities Speciality[]
+  worker       Worker[]
+}
+
+model Speciality {
+  id          String             @id @default(uuid())
+  name        String             @unique
+  roleId      String
+  description String?
+  role        Role               @relation(fields: [roleId], references: [id])
+  workTypes   WorkType[]
+  workers     WorkerSpeciality[]
+}
+
+model WorkType {
+  id           String           @id @default(uuid())
+  name         String           @unique
+  specialityId String
+  description  String?
+  speciality   Speciality       @relation(fields: [specialityId], references: [id])
+  workers      WorkerWorkType[]
+}
+
+model WorkerSpeciality {
+  workerId     String
+  specialityId String
+  speciality   Speciality @relation(fields: [specialityId], references: [id])
+  worker       Worker     @relation(fields: [workerId], references: [id])
+
+  @@id([workerId, specialityId])
+}
+
+model WorkerWorkType {
+  workerId   String
+  workTypeId String
+  workType   WorkType @relation(fields: [workTypeId], references: [id])
+  worker     Worker   @relation(fields: [workerId], references: [id])
+
+  @@id([workerId, workTypeId])
+}
+
+model Notification {
+  id            String           @id @default(uuid())
+  userId        String
+  title         String
+  message       String
+  type          NotificationType
+  createdAt     DateTime         @default(now())
+  isRead        Boolean          @default(false)
+  jobId         String?
+  applicationId String?
+  companyId     String?
+  workerId      String?
+  user          User             @relation(fields: [userId], references: [id])
+}
+
+model Plan {
+  id             String           @id @default(uuid())
+  name           String           @unique
+  description    String?
+  price          Int
+  interval       PlanInterval
+  features       String[]
+  status         PlanStatus       @default(ACTIVE)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  PaymentReceipt PaymentReceipt[]
+  subscriptions  Subscription[]
+}
+
+model Subscription {
+  id               String             @id @default(uuid())
+  userId           String
+  planId           String
+  status           SubscriptionStatus @default(ACTIVE)
+  startDate        DateTime           @default(now())
+  endDate          DateTime?
+  autoRenew        Boolean            @default(false)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  paymentReceiptId String?            @unique
+  paymentReceipt   PaymentReceipt?    @relation(fields: [paymentReceiptId], references: [id])
+  plan             Plan               @relation(fields: [planId], references: [id])
+  user             User               @relation(fields: [userId], references: [id])
+}
+
+model ChapaTransaction {
+  id                String          @id @default(uuid())
+  txRef             String          @unique
+  chapaRef          String?
+  amount            Decimal         @db.Decimal(12, 2)
+  currency          String          @default("ETB")
+  status            ChapaStatus     @default(PENDING)
+  email             String?
+  firstName         String?
+  lastName          String?
+  meta              Json?
+  userId            String?
+  walletId          String?
+  transactionId     String?
+  paymentReceiptId  String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  paymentReceipt    PaymentReceipt? @relation(fields: [paymentReceiptId], references: [id])
+  linkedTransaction Transaction?    @relation(fields: [transactionId], references: [id])
+  user              User?           @relation(fields: [userId], references: [id])
+  wallet            Wallet?         @relation(fields: [walletId], references: [id])
+
+  @@index([userId])
+  @@index([walletId])
+  @@index([status])
+  @@index([createdAt])
 }
 
 enum UserRole {
@@ -52,23 +366,23 @@ enum TransactionType {
 
 enum ApplicationStatus {
   PENDING
-  ASSIGNED
   ACCEPTED
   REJECTED
+  ASSIGNED
 }
 
 enum NotificationType {
-  NEW_JOB // worker gets notified a new job is posted
-  JOB_RESPONSE // worker gets notified about application response
-  COMPANY_REQUEST // worker invited by a company
-  ALERT // system / admin alerts
-  NEW_CANDIDATE // company gets notified a worker applied
-  JOB_ASSIGNED // company assinged to worker
-  JOB_COMPLETED // worker completed the job
-  JOB_CANCELLED // job was cancelled
-  JOB_REJECTED // application was rejected
-  JOB_ACCEPTED // application was accepted
-  PAYMENT // payment related notifications
+  NEW_JOB
+  JOB_RESPONSE
+  COMPANY_REQUEST
+  ALERT
+  NEW_CANDIDATE
+  JOB_ASSIGNED
+  JOB_COMPLETED
+  JOB_CANCELLED
+  JOB_REJECTED
+  JOB_ACCEPTED
+  PAYMENT
 }
 
 enum PlanInterval {
@@ -109,366 +423,4 @@ enum ChapaStatus {
   SUCCESS
   FAILED
   REFUNDED
-}
-
-// prisma/schema.prisma  (additions only)
-
-model User {
-  id           String             @id @default(uuid())
-  fullName     String
-  email        String             @unique
-  phone        String             @unique
-  passwordHash String
-  location     String?
-  role         UserRole
-  status       UserStatus         @default(ACTIVE)
-  verification VerificationStatus @default(PENDING)
-  referralCode String?            @unique
-  referredBy   String?
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  tokenVersion Int      @default(0) // <— NEW
-
-  workerProfile  Worker?
-  companyProfile Company?
-  wallet         Wallet?
-  Review         Review[]
-  Notification   Notification[]
-  PasswordReset  PasswordReset[]
-  Subscription   Subscription[]
-
-  submittedReceipts PaymentReceipt[]   @relation("UserSubmittedReceipts")
-  verifiedReceipts  PaymentReceipt[]   @relation("ReceiptVerifiedBy")
-  ChapaTransaction  ChapaTransaction[]
-
-  @@index([referredBy]) // <— NEW
-  @@index([status, verification]) // compound filter
-  @@index([createdAt])
-}
-
-model Worker {
-  id               String    @id @default(uuid())
-  user             User      @relation(fields: [userId], references: [id])
-  userId           String    @unique
-  categoryId       String?
-  category         Category? @relation(fields: [categoryId], references: [id])
-  professionalRole String?
-  profilePhoto     String?
-  skills           String[]
-  workType         String[]
-  experience       String?
-  nationalIdUrl    String?
-  licenses         License[]
-  portfolio        String[] // file urls
-  availability     Json?
-  isAvailable      Boolean   @default(true)
-
-  // relations
-  reviews      Review[]
-  specialities WorkerSpeciality[]
-  workTypes    WorkerWorkType[]
-  badges       String[]
-  applications WorkerJobApplication[]
-  Role         Role?                  @relation(fields: [roleId], references: [id])
-  roleId       String?
-
-  // index
-  @@index([categoryId])
-  @@index([roleId])
-}
-
-model PasswordReset {
-  id        String   @id @default(uuid())
-  userId    String
-  code      String
-  expiresAt DateTime
-  used      Boolean  @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model License {
-  id          String    @id @default(uuid())
-  worker      Worker    @relation(fields: [workerId], references: [id])
-  workerId    String
-  name        String?
-  issuedAt    DateTime
-  expiresAt   DateTime?
-  documentUrl String
-}
-
-model Review {
-  id        String   @id @default(uuid())
-  rating    Int // e.g. 1–5 stars
-  comment   String?
-  createdAt DateTime @default(now())
-
-  // Relations
-  userId String
-  user   User   @relation(fields: [userId], references: [id])
-
-  companyId String
-  company   Company @relation(fields: [companyId], references: [id])
-  Worker    Worker? @relation(fields: [workerId], references: [id])
-  workerId  String?
-
-  @@unique([userId, companyId]) // one company can review a user only once
-}
-
-model Company {
-  id                    String   @id @default(uuid())
-  user                  User     @relation(fields: [userId], references: [id])
-  userId                String   @unique
-  companyLogo           String?
-  businessLocation      String?
-  verificationDocuments String[] // file urls
-  jobs                  Job[]
-  Review                Review[]
-}
-
-model Job {
-  id                String    @id @default(uuid())
-  title             String
-  description       String
-  requiredSkills    String[]
-  jobLocation       String?
-  payRate           Float
-  jobType           String?
-  startDate         DateTime?
-  duration          DateTime?
-  numbersNeedWorker Int       @default(1)
-  additionalInfo    String?
-  status            JobStatus @default(ACTIVE)
-  companyId         String
-
-  //
-  company      Company                @relation(fields: [companyId], references: [id])
-  applications WorkerJobApplication[]
-  createdAt    DateTime               @default(now())
-}
-
-model WorkerJobApplication {
-  id                 String            @id @default(uuid())
-  worker             Worker            @relation(fields: [workerId], references: [id])
-  workerId           String
-  job                Job               @relation(fields: [jobId], references: [id])
-  jobId              String
-  adminApproved      ApplicationStatus @default(PENDING)
-  status             ApplicationStatus @default(PENDING)
-  acceptedAssignment ApplicationStatus @default(PENDING)
-  appliedAt          DateTime          @default(now())
-
-  @@unique([jobId, workerId])
-}
-
-model Wallet {
-  id               String             @id @default(uuid())
-  user             User               @relation(fields: [userId], references: [id])
-  userId           String             @unique
-  balance          Float              @default(0.0)
-  currency         String             @default("ETB")
-  transactions     Transaction[]
-  ChapaTransaction ChapaTransaction[]
-}
-
-model Transaction {
-  id               String             @id @default(uuid())
-  wallet           Wallet             @relation(fields: [walletId], references: [id])
-  walletId         String
-  type             TransactionType
-  amount           Float
-  createdAt        DateTime           @default(now())
-  // relation to PaymentReceipt (optional)
-  receipt          PaymentReceipt?    @relation("ReceiptTransaction")
-  paymentReceiptId String?
-  PaymentReceipt   PaymentReceipt[]
-  ChapaTransaction ChapaTransaction[]
-}
-
-model Bank {
-  id          String     @id @default(uuid())
-  name        String
-  accountName String
-  accountNo   String
-  type        BankType
-  status      BankStatus @default(ACTIVE)
-
-  receipts  PaymentReceipt[]
-  createdAt DateTime         @default(now())
-  updatedAt DateTime         @updatedAt
-}
-
-model PaymentReceipt {
-  id          String        @id @default(uuid())
-  user        User          @relation("UserSubmittedReceipts", fields: [userId], references: [id])
-  userId      String
-  bank        Bank          @relation(fields: [bankId], references: [id])
-  bankId      String
-  plan        Plan?         @relation(fields: [planId], references: [id])
-  planId      String?
-  amount      Float
-  referenceNo String?
-  screenshot  String
-  status      ReceiptStatus @default(PENDING)
-
-  verifiedBy    User?        @relation("ReceiptVerifiedBy", fields: [verifiedById], references: [id])
-  verifiedById  String?
-  transaction   Transaction? @relation("ReceiptTransaction", fields: [transactionId], references: [id])
-  transactionId String?      @unique
-
-  createdAt        DateTime           @default(now())
-  updatedAt        DateTime           @updatedAt
-  Transaction      Transaction[]
-  ChapaTransaction ChapaTransaction[]
-
-  subscription Subscription?
-}
-
-model Category {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-
-  roles  Role[]
-  Worker Worker[]
-}
-
-model Role {
-  id          String   @id @default(uuid())
-  name        String   @unique
-  description String?
-  categoryId  String
-  category    Category @relation(fields: [categoryId], references: [id])
-
-  worker       Worker[]
-  specialities Speciality[]
-}
-
-model Speciality {
-  id          String  @id @default(uuid())
-  name        String  @unique
-  description String?
-  roleId      String
-  role        Role    @relation(fields: [roleId], references: [id])
-
-  workTypes WorkType[]
-  workers   WorkerSpeciality[]
-}
-
-model WorkType {
-  id           String     @id @default(uuid())
-  name         String     @unique
-  description  String?
-  specialityId String
-  speciality   Speciality @relation(fields: [specialityId], references: [id])
-
-  workers WorkerWorkType[]
-}
-
-model WorkerSpeciality {
-  workerId     String
-  specialityId String
-
-  worker     Worker     @relation(fields: [workerId], references: [id])
-  speciality Speciality @relation(fields: [specialityId], references: [id])
-
-  @@id([workerId, specialityId]) // composite primary key
-}
-
-model WorkerWorkType {
-  workerId   String
-  workTypeId String
-
-  worker   Worker   @relation(fields: [workerId], references: [id])
-  workType WorkType @relation(fields: [workTypeId], references: [id])
-
-  @@id([workerId, workTypeId])
-}
-
-model Notification {
-  id            String           @id @default(uuid())
-  userId        String
-  jobId         String?
-  applicationId String?
-  workerId      String?
-  companyId     String?
-  title         String
-  message       String
-  type          NotificationType
-  createdAt     DateTime         @default(now())
-  isRead        Boolean          @default(false)
-
-  user User @relation(fields: [userId], references: [id])
-}
-
-model Plan {
-  id          String       @id @default(uuid())
-  name        String       @unique
-  description String?
-  price       Int // store in cents (e.g. $10.00 = 1000)
-  interval    PlanInterval // monthly, yearly, etc.
-  features    String[] // list of features (or normalize into another table)
-  status      PlanStatus   @default(ACTIVE)
-
-  subscriptions  Subscription[]
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  PaymentReceipt PaymentReceipt[]
-}
-
-model Subscription {
-  id        String             @id @default(uuid())
-  userId    String
-  planId    String
-  status    SubscriptionStatus @default(ACTIVE)
-  startDate DateTime           @default(now())
-  endDate   DateTime?
-  autoRenew Boolean            @default(false)
-
-  user      User     @relation(fields: [userId], references: [id])
-  plan      Plan     @relation(fields: [planId], references: [id])
-
-  // Links a plan payment receipt to its subscription lifecycle.
-  paymentReceiptId String?        @unique
-  paymentReceipt   PaymentReceipt? @relation(fields: [paymentReceiptId], references: [id])
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
-
-model ChapaTransaction {
-  id        String      @id @default(uuid())
-  txRef     String      @unique // merchant tx_ref you send to Chapa
-  chapaRef  String? // chapa ref_id / reference returned by Chapa
-  amount    Decimal     @db.Decimal(12, 2) // recommended: Decimal for money
-  currency  String      @default("ETB")
-  status    ChapaStatus @default(PENDING)
-  email     String?
-  firstName String?
-  lastName  String?
-  meta      Json? // raw chapa response/payload for auditing
-
-  // optional relations (pick whichever you want to use)
-  user   User?   @relation(fields: [userId], references: [id])
-  userId String?
-
-  wallet   Wallet? @relation(fields: [walletId], references: [id])
-  walletId String?
-
-  // link to your existing Transaction record if you reconcile Chapa payment to an internal transaction
-  linkedTransaction Transaction? @relation(fields: [transactionId], references: [id])
-  transactionId     String?
-
-  // optional relation to PaymentReceipt if relevant
-  paymentReceipt   PaymentReceipt? @relation(fields: [paymentReceiptId], references: [id])
-  paymentReceiptId String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId])
-  @@index([walletId])
-  @@index([status])
-  @@index([createdAt])
 }
