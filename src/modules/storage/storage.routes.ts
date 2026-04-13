@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { uploadProfilePicture, uploadNationalId, uploadCompanyFileController, uploadWorkerFileController, uploadPaymentReceipt } from "./storage.controller";
+import { uploadProfilePicture, uploadNationalId, uploadCompanyFileController, uploadWorkerFileController, uploadPaymentReceipt, uploadAndUpdateMyProfilePicture } from "./storage.controller";
 import { upload } from "../../middlewares/upload";
 import validate from "../../middlewares/validate";
+import { authenticate } from "../../middlewares/authMiddleware";
 import {
     uploadFileValidation,
     uploadProfilePictureValidation,
@@ -126,6 +127,59 @@ router.post("/company/documents", upload.single("file"), validate(uploadFileVali
  */
 
 router.post("/profile-picture", upload.single("file"), validate(uploadProfilePictureValidation, "file"), uploadProfilePicture);
+
+/**
+ * @openapi
+ * /storage/profile-picture/update:
+ *   post:
+ *     tags:
+ *       - Storage
+ *     summary: Upload and update my profile picture (authenticated)
+ *     description: Uploads a profile image to cloud storage and updates the authenticated user's profile field. WORKER updates `profilePhoto`; COMPANY updates `companyLogo`.
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               file:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Profile picture uploaded and profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 message:
+ *                   type: string
+ *                 url:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *       400:
+ *         description: No file uploaded or validation error
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden for non-WORKER/COMPANY roles
+ *       404:
+ *         description: Worker/Company profile not found
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  "/profile-picture/update",
+  authenticate,
+  upload.single("file"),
+  validate(uploadProfilePictureValidation, "file"),
+  uploadAndUpdateMyProfilePicture
+);
 
 /**
  * @openapi
