@@ -203,6 +203,64 @@ export const getJobs = async (filters?: {
   });
 };
 
+// Get jobs for the authenticated company user only
+export const getMyCompanyJobs = async (
+  userId: string,
+  filters?: {
+    status?: JobStatus;
+    jobLocation?: string;
+    requiredSkill?: string;
+    jobType?: string;
+    startDate?: Date;
+    duration?: Date;
+    page?: number;
+    limit?: number;
+  }
+) => {
+  const company = await prisma.company.findUnique({ where: { userId } });
+  if (!company) {
+    throw Object.assign(new Error("Company profile not found"), { status: 404 });
+  }
+
+  const page = Math.max(1, Number(filters?.page) || 1);
+  const take = Math.min(100, Math.max(1, Number(filters?.limit) || 10));
+  const skip = (page - 1) * take;
+
+  const where: Prisma.JobWhereInput = {
+    companyId: company.id,
+    status: filters?.status,
+    jobLocation: filters?.jobLocation,
+    requiredSkills: filters?.requiredSkill ? { has: filters.requiredSkill } : undefined,
+    jobType: filters?.jobType,
+    startDate: filters?.startDate,
+    duration: filters?.duration,
+  };
+
+  const [data, total] = await Promise.all([
+    prisma.job.findMany({
+      where,
+      include: {
+        company: { include: { user: true } },
+        applications: { include: { worker: { include: { user: true } } } },
+      },
+      orderBy: { createdAt: "desc" },
+      skip,
+      take,
+    }),
+    prisma.job.count({ where }),
+  ]);
+
+  return {
+    data,
+    meta: {
+      total,
+      page,
+      limit: take,
+      totalPages: Math.ceil(total / take) || 1,
+    },
+  };
+};
+
 // Get job details by ID
 export const getJobById = async (jobId: string) => {
   return prisma.job.findUnique({

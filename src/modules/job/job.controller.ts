@@ -57,6 +57,26 @@ export const getJobs = async (req: Request, res: Response, next: NextFunction) =
   }
 };
 
+// Get jobs for the authenticated company account only
+export const getMyCompanyJobs = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    const userId = req?.user?.id as string | undefined;
+    const role = req?.user?.role as string | undefined;
+
+    if (!userId) {
+      return res.status(401).json({ success: false, message: "Unauthorized" });
+    }
+    if (role !== "COMPANY") {
+      return res.status(403).json({ success: false, message: "Forbidden" });
+    }
+
+    const jobs = await jobService.getMyCompanyJobs(userId, req.query as any);
+    res.json(jobs);
+  } catch (err: any) {
+    next(err);
+  }
+};
+
 // Get job by ID
 export const getJobById = async (req: Request, res: Response, next: NextFunction) => {
   try {

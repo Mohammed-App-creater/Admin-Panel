@@ -408,6 +408,51 @@ router.get("/", authenticate, validate(jobFiltersSchema, "query"), jobController
 
 /**
  * @openapi
+ * /jobs/company/me:
+ *   get:
+ *     tags:
+ *       - Job
+ *     summary: Get my company jobs (authenticated company)
+ *     description: Returns jobs that belong to the authenticated company user only.
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: jobLocation
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: requiredSkill
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: jobType
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *     responses:
+ *       200:
+ *         description: List of authenticated company's jobs
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden (company role required)
+ */
+router.get("/company/me", authenticate, authorize("COMPANY"), validate(jobFiltersSchema, "query"), jobController.getMyCompanyJobs);
+
+/**
+ * @openapi
  * /jobs/{id}:
  *   get:
  *     tags:
