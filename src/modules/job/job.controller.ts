@@ -280,7 +280,10 @@ export const getMyJobAssignments = async (req: Request, res: Response, next: Nex
     const { page, limit } = req.query;
     if (!workerId) throw new Error("Unauthorized");
     if (req?.user?.role !== "WORKER") throw new Error("Forbidden");
-    const result = await jobService.getMyJobInvitations(workerId, page ? Number(page) : 1, limit ? Number(limit) : 20);
+    const result = await jobService.getMyJobAssignments(workerId, {
+      page: page ? Number(page) : 1,
+      limit: limit ? Number(limit) : 20,
+    });
     res.json(result);
   } catch (err) {
     next(err);

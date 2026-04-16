@@ -870,8 +870,35 @@ export const getMyApprovedJobs = async (workerId: string, page = 1, limit = 20) 
   };
 };
 
-/** @deprecated Use getMyJobInvitations instead. Kept for backward compatibility. */
 export const getMyJobAssignments = async (
   workerId: string,
   opts: { page?: number; limit?: number }
-) => getMyJobInvitations(workerId, opts.page ?? 1, opts.limit ?? 20);
+) => {
+  const worker = await prisma.worker.findUnique({ where: { userId: workerId } });
+  if (!worker) throw new Error("Worker not found");
+
+  const take = Math.min(100, Math.max(1, opts.limit ?? 20));
+  const skip = (Math.max(1, opts.page ?? 1) - 1) * take;
+  const where = { workerId: worker.id };
+
+  const [items, total] = await Promise.all([
+    prisma.workerJobApplication.findMany({
+      where,
+      take,
+      skip,
+      include: { job: { include: { company: { include: { user: true } } } }, worker: { include: { user: true } } },
+      orderBy: { appliedAt: "desc" },
+    }),
+    prisma.workerJobApplication.count({ where }),
+  ]);
+
+  return {
+    data: items,
+    meta: {
+      total,
+      page: Math.max(1, opts.page ?? 1),
+      limit: take,
+      totalPages: Math.ceil(total / take),
+    },
+  };
+};
