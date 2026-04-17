@@ -822,7 +822,9 @@ router.get("/approved/me", authenticate, validate(paginationQuerySchema, "query"
  *     tags:
  *       - Job-Assignments
  *     summary: Get my job history (authenticated worker)
- *     description: Retrieve a list of job history entries for the authenticated worker.
+ *     description: |
+ *       Jobs that are finished (CLOSED or CANCELLED) where this worker has an application/assignment row.
+ *       Does not require admin approval or a specific application status.
  *     security:
  *       - bearerAuth: []
  *     responses:

@@ -779,14 +779,14 @@ export const getAllAssignedForJobs = async (jobId: string, page = 1, limit = 20)
   };
 };
 
+/** Past jobs: any application for this worker where the job is no longer active (CLOSED or CANCELLED). */
 export const getMyJobHistory = async (workerId: string, page = 1, limit = 20) => {
   const worker = await prisma.worker.findUnique({ where: { userId: workerId } });
-  const where: any = {
-    workerId: worker?.id,
-    job: { status: "CLOSED" },
-    status: "ACCEPTED",
-    adminApproved: "ACCEPTED",
-    acceptedAssignment: "ACCEPTED",
+  if (!worker) throw new Error("Worker not found");
+
+  const where: Prisma.WorkerJobApplicationWhereInput = {
+    workerId: worker.id,
+    job: { status: { in: [JobStatus.CLOSED, JobStatus.CANCELLED] } },
   };
   const take = Math.min(100, Math.max(1, limit ?? 20));
   const skip = (Math.max(1, page ?? 1) - 1) * take;
