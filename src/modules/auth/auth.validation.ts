@@ -40,11 +40,6 @@ export const authValidationVerifyResetCodeSchema = z.object({
 });
 
 export const authValidationChangePasswordSchema = z.object({
-    phone: z
-        .string()
-        .regex(/^(?:\+251(?:9|7)\d{8}|0(?:9|7)\d{8})$/, {
-            message: 'Invalid Ethiopian phone number',
-        }),
     oldPassword: z.string().min(6, { message: 'Old password must be at least 6 characters long' }),
     newPassword: z.string().min(6, { message: 'New password must be at least 6 characters long' }),
 });

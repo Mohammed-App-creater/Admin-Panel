@@ -241,13 +241,9 @@ router.post("/verify-reset-code", validate(validateSchema.authValidationVerifyRe
  *           schema:
  *             type: object
  *             required:
- *               - phone
  *               - oldPassword
  *               - newPassword
  *             properties:
- *               phone:
- *                 type: string
- *                 format: phone
  *               oldPassword:
  *                 type: string
  *               newPassword:

@@ -213,12 +213,9 @@ export const verifyResetCode = async (email: string, code: string) => {
   return "Code verified successfully";
 };
 
-export const changePassword = async (phone: string, oldPassword: string, newPassword: string, id: string) => {
+export const changePassword = async (oldPassword: string, newPassword: string, id: string) => {
   const user = await prisma.user.findUnique({ where: { id } });
   if (!user) return { status: 404, message: "User not found" };
-
-  const normalizedPhone = normalizeEthiopianPhone(phone);
-  if (normalizedPhone !== user.phone) return { status: 401, message: "Phone number does not match the authenticated user" };
 
   const isMatch = await bcrypt.compare(oldPassword, user.passwordHash);
   if (!isMatch) return { status: 401, message: "Old password is incorrect" };

@@ -79,10 +79,10 @@ export const verifyResetCode = async (req: Request, res: Response, next: NextFun
 }
 
 export const changePassword = async (req: Request, res: Response, next: NextFunction) => {
-  const { phone, oldPassword, newPassword } = req.body;
+  const { oldPassword, newPassword } = req.body;
   if (!req?.user?.id) return res.status(401).json(errorResponse("Unauthorized"));
   try {
-    res.status(200).json(successResponse(await authService.changePassword(phone, oldPassword, newPassword, req?.user?.id), "Password changed successfully"));
+    res.status(200).json(successResponse(await authService.changePassword(oldPassword, newPassword, req?.user?.id), "Password changed successfully"));
   } catch (error: any) {
     next(error);
   }
