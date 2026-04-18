@@ -10,7 +10,7 @@ export const authValidationRegisterSchema = z.object({
             message: 'Invalid Ethiopian phone number',
         }),
     location: z.string().min(2).max(100),
-    email: z.email({ message: 'Invalid email address' }),
+    email: z.email({ message: 'Invalid email address' }).optional(),
     password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
     role: z.enum([UserRole.ADMIN, UserRole.WORKER, UserRole.COMPANY, UserRole.OWNER, UserRole.BROKER], {
         error: 'Invalid role'
