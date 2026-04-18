@@ -31,7 +31,7 @@ export const authValidationApproveUserSchema = z.object({
 });
 
 export const authValidationRequestPasswordResetSchema = z.object({
-    email: z.email({ message: 'Invalid email address' }),
+    email: z.email({ message: 'Invalid email address' }).optional().nullable(),
 });
 
 export const authValidationVerifyResetCodeSchema = z.object({
