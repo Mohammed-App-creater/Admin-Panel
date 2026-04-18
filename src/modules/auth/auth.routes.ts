@@ -20,7 +20,6 @@ const router = Router();
  *           schema:
  *             type: object
  *             required:
- *               - email
  *               - password
  *             properties:
  *               fullName:

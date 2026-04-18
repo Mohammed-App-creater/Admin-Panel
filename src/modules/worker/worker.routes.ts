@@ -576,7 +576,6 @@ router.patch("/toggle-availability", validate(toggleAvailabilitySchema, "body"),
  *             type: object
  *             required:
  *               - fullName
- *               - email
  *               - password
  *               - role
  *               - categoryId

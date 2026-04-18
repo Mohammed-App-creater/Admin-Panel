@@ -1,4 +1,5 @@
 import z from "zod";
+import { optionalEmailSchema, optionalPatchEmailSchema } from "../../utils/emailInput";
 
 
 const availabilityDaysSchema = z.object({
@@ -98,7 +99,7 @@ export const specialityIdSchema = z.object({
 export const workerRegistrationSchema = z.object({
   // User info
   fullName: z.string().min(2, "Full name is required"),
-  email: z.email("Invalid email").optional().nullable(),
+  email: optionalEmailSchema,
   phone: z.string(),
   password: z.string().min(6, "Password must be at least 6 characters"),
   role: z.string().min(1, "Role is required"),
@@ -132,7 +133,7 @@ export const workerRegistrationSchema = z.object({
 export const workerUpdateSchema = z.object({
   // user fields
   fullName: z.string().min(2).optional(),
-  email: z.string().email("Invalid email").optional(),
+  email: optionalPatchEmailSchema,
   phone: z.string().optional(),
   password: z.string().min(6, "Password must be at least 6 characters").optional(),
   role: z.string().optional(), // consider enum if you have one

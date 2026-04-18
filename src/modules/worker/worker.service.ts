@@ -1,6 +1,7 @@
 import prisma from "../../config/prisma";
 import bcrypt from "bcrypt";
 import { NotificationService } from "../notification/notification.service";
+import { normalizeOptionalEmail } from "../../utils/emailInput";
 
 type WorkerFilters = {
   status: ("ACTIVE" | "INACTIVE" | "PENDING" | "REJECTED");
@@ -22,7 +23,7 @@ type WorkerFilters = {
 
 type UpdateWorkerData = {
   fullName?: string;
-  email?: string;
+  email?: string | null;
   phone?: string | null;
   password?: string;
   role?: string;
@@ -195,10 +196,7 @@ export const getWorkerById = async (workerId: string) => {
 };
 
 export const workerRegister = async (data: any) => {
-  const email =
-    typeof data.email === "string" && data.email.trim().length > 0
-      ? data.email.trim()
-      : null;
+  const email = normalizeOptionalEmail(data.email);
 
   if (email) {
     const workerExist = await prisma.user.findUnique({
@@ -282,9 +280,13 @@ export const workerUpdate = async (workerUserId: string, data: UpdateWorkerData)
   if (!existingWorker) throw new Error("Worker profile not found");
 
   // 3) uniqueness checks (only when changed)
-  if (data.email && data.email !== existingUser.email) {
-    const emailTaken = await prisma.user.findUnique({ where: { email: data.email } });
-    if (emailTaken) throw new Error("Email already taken");
+  if (data.email !== undefined) {
+    const nextEmail =
+      data.email === null ? null : normalizeOptionalEmail(data.email);
+    if (typeof nextEmail === "string" && nextEmail !== existingUser.email) {
+      const emailTaken = await prisma.user.findUnique({ where: { email: nextEmail } });
+      if (emailTaken) throw new Error("Email already taken");
+    }
   }
   // phone is nullable in your model — check only when provided and changed
   if (data.phone !== undefined && data.phone !== existingUser.phone) {
@@ -297,7 +299,10 @@ export const workerUpdate = async (workerUserId: string, data: UpdateWorkerData)
   // 4) prepare user update payload
   const userUpdateData: any = {};
   if (data.fullName !== undefined) userUpdateData.fullName = data.fullName;
-  if (data.email !== undefined) userUpdateData.email = data.email;
+  if (data.email !== undefined) {
+    userUpdateData.email =
+      data.email === null ? null : normalizeOptionalEmail(data.email) ?? null;
+  }
   if (data.phone !== undefined) userUpdateData.phone = data.phone;
   if (data.role !== undefined) userUpdateData.role = data.role;
   if (data.location !== undefined) userUpdateData.location = data.location;

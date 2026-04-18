@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { UserRole } from '@prisma/client';
 import e from 'express';
+import { optionalEmailSchema } from '../../utils/emailInput';
 
 export const authValidationRegisterSchema = z.object({
     fullName: z.string().min(2).max(100),
@@ -10,7 +11,7 @@ export const authValidationRegisterSchema = z.object({
             message: 'Invalid Ethiopian phone number',
         }),
     location: z.string().min(2).max(100),
-    email: z.email({ message: 'Invalid email address' }),
+    email: optionalEmailSchema,
     password: z.string().min(6, { message: 'Password must be at least 6 characters long' }),
     role: z.enum([UserRole.ADMIN, UserRole.WORKER, UserRole.COMPANY, UserRole.OWNER, UserRole.BROKER], {
         error: 'Invalid role'

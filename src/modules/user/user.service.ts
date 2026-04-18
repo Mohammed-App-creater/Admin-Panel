@@ -3,6 +3,7 @@ import prisma from "../../config/prisma";
 import bcrypt from "bcrypt";
 import { UserRole, UserStatus, VerificationStatus } from "@prisma/client";
 import { Prisma } from "@prisma/client";
+import { normalizeOptionalEmail } from "../../utils/emailInput";
 
 export type ListUsersFilters = {
   email?: string;
@@ -28,9 +29,11 @@ export class UserService {
       limit = 20,
     } = filters;
 
+    const emailFilter = normalizeOptionalEmail(email);
+
     const where: Prisma.UserWhereInput = {
       AND: [
-        email ? { email: { contains: email, mode: "insensitive" } } : undefined,
+        emailFilter ? { email: { contains: emailFilter, mode: "insensitive" } } : undefined,
         role ? { role } : undefined,
         status ? { status } : undefined,
         verification ? { verification } : undefined,

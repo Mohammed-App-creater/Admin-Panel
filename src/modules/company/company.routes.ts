@@ -240,7 +240,6 @@ router.get("/:id", authenticate, validate(companyParamsSchema, "params"), compan
  *             required:
  *               - fullName
  *               - phone
- *               - email
  *               - password
  *               - location
  *     responses:

@@ -7,7 +7,8 @@ import { ENV } from "../../config/env";
 import { UserStatus, VerificationStatus } from "@prisma/client";
 import { sendResetEmail } from "../../utils/mailer";
 import { NotificationService } from "../notification/notification.service";
-import {normalizeEthiopianPhone} from "../../utils/normalization";
+import { normalizeEthiopianPhone } from "../../utils/normalization";
+import { normalizeOptionalEmail } from "../../utils/emailInput";
 
 
 function generateCode(): string {
@@ -15,12 +16,15 @@ function generateCode(): string {
 }
 
 export const register = async (data: any) => {
-  const { fullName, phone, email, password, role, location } = data;
+  const { fullName, phone, password, role, location } = data;
+  const normalizedEmail = normalizeOptionalEmail(data.email);
   // Normalize phone number
   const normalizedPhone = normalizeEthiopianPhone(phone);
-  // Check if user already exists
-  const existingUser = email ? await prisma.user.findUnique({ where: { email } }) : false || await prisma.user.findUnique({ where: { phone: normalizedPhone } });
-  if (existingUser) {
+  const existingByEmail = normalizedEmail
+    ? await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    : null;
+  const existingByPhone = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
+  if (existingByEmail || existingByPhone) {
     throw new Error("User already exists with this email or phone number");
   }
 
@@ -30,7 +34,7 @@ export const register = async (data: any) => {
     data: {
       fullName,
       phone,
-      email,
+      email: normalizedEmail ?? undefined,
       passwordHash,
       role,
       location,
@@ -173,8 +177,9 @@ export const rejectUser = async (userId: string) => {
 };
 
 export const requestPasswordReset = async (email: string) => {
-  if (!email) return { status: 400, message: "Email is required to request password reset" };
-  const user = await prisma.user.findUnique({ where: { email } });
+  const normalized = normalizeOptionalEmail(email);
+  if (!normalized) return { status: 400, message: "Email is required to request password reset" };
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
   if (!user) return { status: 404, message: "User not found" };
   const code = generateCode();
   await prisma.passwordReset.create({
@@ -184,13 +189,14 @@ export const requestPasswordReset = async (email: string) => {
       expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
     },
   });
-  await sendResetEmail(email, code);
-  return `Reset code sent to ${email}`;
+  await sendResetEmail(normalized, code);
+  return `Reset code sent to ${normalized}`;
 }
 
 export const verifyResetCode = async (email: string, code: string) => {
-  if (!email) return { status: 400, message: "Email is required to verify reset code" };
-  const user = await prisma.user.findUnique({ where: { email } });
+  const normalized = normalizeOptionalEmail(email);
+  if (!normalized) return { status: 400, message: "Email is required to verify reset code" };
+  const user = await prisma.user.findUnique({ where: { email: normalized } });
   if (!user) return { status: 404, message: "User not found" };
 
   const reset = await prisma.passwordReset.findFirst({

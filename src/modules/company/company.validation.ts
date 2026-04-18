@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { optionalEmailSchema } from '../../utils/emailInput';
 
 /**
  * Zod schemas for company endpoints.
@@ -95,7 +96,7 @@ export const updateCompanySchema = z.object({
 export const createCompanySchema = z.object({
     fullName: z.string().min(2).max(100),
     phone: z.string().min(10).max(15),
-    email: z.email(),
+    email: optionalEmailSchema,
     password: z.string().min(6).max(100),
     location: z.string().min(2).max(100),
     companyLogo: z

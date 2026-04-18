@@ -63,7 +63,7 @@ export const rejectUser = async (req: Request, res: Response) => {
 export const requestPasswordReset = async (req: Request, res: Response, next: NextFunction) => {
   const { email } = req.body;
   try {
-    res.status(200).json(successResponse(await authService.requestPasswordReset(email), `Reset code sent to npm run dev${email}`));
+    res.status(200).json(successResponse(await authService.requestPasswordReset(email), "Reset code sent"));
   } catch (error: any) {
     next(error);
   }

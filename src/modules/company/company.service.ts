@@ -2,6 +2,7 @@ import prisma from "../../config/prisma";
 import { VerificationStatus, UserStatus } from "@prisma/client";
 import { Company } from "@prisma/client";
 import bcrypt from "bcrypt";
+import { normalizeOptionalEmail } from "../../utils/emailInput";
 
 type CompanyFilters = {
   q?: string;
@@ -133,10 +134,14 @@ export const getCompanyById = async (companyId: string) => {
 
 // Register a company
 export const registerCompany = async (data: any) => {
-  const { fullName, phone, email, password, location, companyLogo, businessLocation, verificationDocuments } = data;
+  const { fullName, phone, password, location, companyLogo, businessLocation, verificationDocuments } = data;
+  const normalizedEmail = normalizeOptionalEmail(data.email);
 
-  const existingUser = await prisma.user.findUnique({ where: { email } }) || await prisma.user.findUnique({ where: { phone } });
-  if (existingUser) {
+  const existingByEmail = normalizedEmail
+    ? await prisma.user.findUnique({ where: { email: normalizedEmail } })
+    : null;
+  const existingByPhone = await prisma.user.findUnique({ where: { phone } });
+  if (existingByEmail || existingByPhone) {
     throw new Error("User already exists with this email or phone number");
   }
 
@@ -146,7 +151,7 @@ export const registerCompany = async (data: any) => {
     data: {
       fullName,
       phone,
-      email,
+      email: normalizedEmail ?? undefined,
       passwordHash,
       role: "COMPANY",
       location,
