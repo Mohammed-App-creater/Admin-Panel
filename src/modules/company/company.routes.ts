@@ -238,10 +238,8 @@ router.get("/:id", authenticate, validate(companyParamsSchema, "params"), compan
  *                 items:
  *                   type: string
  *             required:
- *               - fullName
  *               - phone
  *               - password
- *               - location
  *     responses:
  *       201:
  *         description: Company registered successfully

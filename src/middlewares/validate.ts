@@ -15,7 +15,8 @@ const validate =
                 if (source === "file") {
                     schema.parse(req.file);
                 } else {
-                    schema.parse(req[source]);
+                    const parsed = schema.parse(req[source]);
+                    (req as any)[source] = parsed;
                 }
                 next();
             } catch (error) {

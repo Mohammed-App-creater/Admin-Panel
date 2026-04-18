@@ -93,12 +93,36 @@ export const updateCompanySchema = z.object({
 }, "No data is provided"
 );
 
+const ethiopianPhoneSchema = z
+    .string()
+    .regex(/^(?:\+251(?:9|7)\d{8}|0(?:9|7)\d{8})$/, {
+        message: "Invalid Ethiopian phone number",
+    });
+
+/** Treat null / blank as omitted so clients can send explicit null without failing validation. */
+const optionalTrimmedName = z.preprocess(
+    (v) =>
+        v === null || v === undefined || (typeof v === "string" && v.trim() === "")
+            ? undefined
+            : v,
+    z.string().min(2).max(100).optional()
+);
+
+const optionalTrimmedLocation = z.preprocess(
+    (v) =>
+        v === null || v === undefined || (typeof v === "string" && v.trim() === "")
+            ? undefined
+            : v,
+    z.string().min(2).max(100).optional()
+);
+
+/** Registration: only phone + password required; everything else can be completed later. */
 export const createCompanySchema = z.object({
-    fullName: z.string().min(2).max(100),
-    phone: z.string().min(10).max(15),
+    fullName: optionalTrimmedName,
+    phone: ethiopianPhoneSchema,
     email: optionalEmailSchema,
-    password: z.string().min(6).max(100),
-    location: z.string().min(2).max(100),
+    password: z.string().min(6, { message: "Password must be at least 6 characters long" }),
+    location: optionalTrimmedLocation,
     companyLogo: z
         .union([z.url("Invalid company logo URL"), z.literal("")])
         .optional()

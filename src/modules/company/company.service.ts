@@ -3,6 +3,7 @@ import { VerificationStatus, UserStatus } from "@prisma/client";
 import { Company } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { normalizeOptionalEmail } from "../../utils/emailInput";
+import { normalizeEthiopianPhone } from "../../utils/normalization";
 
 type CompanyFilters = {
   q?: string;
@@ -134,13 +135,26 @@ export const getCompanyById = async (companyId: string) => {
 
 // Register a company
 export const registerCompany = async (data: any) => {
-  const { fullName, phone, password, location, companyLogo, businessLocation, verificationDocuments } = data;
+  const { password, companyLogo, businessLocation, verificationDocuments } = data;
+  if (typeof data?.phone !== "string" || typeof password !== "string") {
+    throw new Error("Invalid registration data");
+  }
+  const normalizedPhone = normalizeEthiopianPhone(data.phone);
+  const verificationDocs = Array.isArray(verificationDocuments) ? verificationDocuments : [];
   const normalizedEmail = normalizeOptionalEmail(data.email);
+  const fullName =
+    typeof data.fullName === "string" && data.fullName.trim().length >= 2
+      ? data.fullName.trim()
+      : "Company";
+  const location =
+    typeof data.location === "string" && data.location.trim().length >= 2
+      ? data.location.trim()
+      : undefined;
 
   const existingByEmail = normalizedEmail
     ? await prisma.user.findUnique({ where: { email: normalizedEmail } })
     : null;
-  const existingByPhone = await prisma.user.findUnique({ where: { phone } });
+  const existingByPhone = await prisma.user.findUnique({ where: { phone: normalizedPhone } });
   if (existingByEmail || existingByPhone) {
     throw new Error("User already exists with this email or phone number");
   }
@@ -150,7 +164,7 @@ export const registerCompany = async (data: any) => {
   const company = await prisma.user.create({
     data: {
       fullName,
-      phone,
+      phone: normalizedPhone,
       email: normalizedEmail ?? undefined,
       passwordHash,
       role: "COMPANY",
@@ -161,9 +175,9 @@ export const registerCompany = async (data: any) => {
 
       companyProfile: {
         create: {
-          companyLogo,
-          businessLocation,
-          verificationDocuments
+          companyLogo: companyLogo ?? undefined,
+          businessLocation: businessLocation ?? undefined,
+          verificationDocuments: verificationDocs,
         },
       },
     },
